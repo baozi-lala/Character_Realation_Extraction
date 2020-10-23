@@ -1,0 +1,9 @@
+#urllib.parse
+#urllib.request
+bs4
+pyhanlp
+scrapy
+lxml
+#pybloom
+pymongo
+pymysql

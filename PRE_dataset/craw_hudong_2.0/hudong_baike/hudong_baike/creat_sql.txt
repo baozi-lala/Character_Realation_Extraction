@@ -1,0 +1,21 @@
+# Commands to creat mysql database and tables. This database includes actors and films. 
+
+# 人物 : ID, 中文名，外文名，别名，国籍，家庭成员，早年经历，个人生活;
+# actor: actor_id, actor_chName, actor_foreName, actor_otherName, actor_nationality, actor_family, actor_earlyExperiencese, actor_personalLife;
+
+
+# 人物->关系类型：ID, 人物1ID, 人物1中文名, 人物2ID, 人物2中文名, 关系类型;
+# actor_to_relation: relation_id, actor1_id,actor1_name, actor2_id, actor2_name, relation_type;
+
+CREATE DATABASE hudong_baike;
+USE hudong_baike;
+
+CREATE TABLE actor( actor_id INT NOT NULL, actor_chName VARCHAR(100), actor_foreName VARCHAR(100), actor_otherName VARCHAR(100),actor_nationality VARCHAR(100), actor_family TEXT, actor_earlyExperiencese TEXT, actor_personalLife TEXT, actor_tags TEXT,relation TEXT,PRIMARY KEY(actor_id) );
+
+
+CREATE TABLE actor_to_relation( relation_id INT NOT NULL, actor1_name VARCHAR(100),actor2_name VARCHAR(100), relation_type VARCHAR(100), PRIMARY KEY(relation_id) );
+
+# Set char Set
+ALTER TABLE actor CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
+ALTER TABLE actor_to_relation CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
+

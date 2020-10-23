@@ -1,0 +1,29 @@
+data:
+  sen_len : 70  # 60：每个句子的固定长度（词个数）：如果真实句子长度大于该值，则舍弃后面的，小于则补充
+#  pre_embed : flags.pre_embed  # 是否进行了训练（得到word2vec的词向量）
+  pos_limit : 15  # 词与实体最大的距离
+  pos_dim : 5  # 设置位置嵌入的维度
+  word_dim : 768
+#  hidden_dim : flags.hidden_dim
+  data_path : './origin_data'  # 路径： './data'
+  model_path :  './model'
+  mode : "train"  # 选择模式（训练或者测试）
+  generate_data_path :  './data'
+  num_classes : 17
+#  testDataPath: './data/test.txt'
+#  testLenPath: './data/test.len'
+  
+model:
+  batch_size: 128
+  learningRate: 0.0001
+#  maxWordLen: 256 #与Bert对齐，不能改变
+  cell_dim: 768
+  num_layers: 1
+  epochNum: 5
+  earlyStop: 2 #早停机制
+    #  dropout: 0.2
+  epochs: 60  # epochs
+  dropout: 0.5  # 失活概率：0.5
+  pretrained_model: 'Bert'
+  bert_base_chinese: './bert-base-chinese'
+  xlnet_base_chinese: './xlnet_base_chinese'
