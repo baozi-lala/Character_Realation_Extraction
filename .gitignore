@@ -29,3 +29,5 @@ PRE_dataset/craw_hudong_2.0/hudong_baike/data/
 PRE_dataset/craw_news/Chinese_name_rec/hanlp-1.7.7-release/
 PRE_dataset/craw_hudong_2.0/craw_without_spider/
 PRE_dataset/craw_news/Chinese_name_rec/files/
+PRE_dataset/craw_relation/files/
+PRE_dataset/craw_relation/staticsFiles/
