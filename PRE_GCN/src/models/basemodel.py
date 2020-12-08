@@ -20,25 +20,25 @@ class BaseModel(nn.Module):
                                      pretrained=pembeds,
                                      mapping=maps['word2idx'])
 
-        self.ner_emb = EmbedLayer(num_embeddings=sizes['type_size'],
-                                  embedding_dim=params['type_dim'], dropout=0.0, ignore=0)
+        # self.ner_emb = EmbedLayer(num_embeddings=sizes['type_size'],
+        #                           embedding_dim=params['type_dim'], dropout=0.0, ignore=0)
 
 
-        if params['finaldist']:
-            self.dist_embed_dir = EmbedLayer(num_embeddings=20, embedding_dim=params['dist_dim'],
-                                             dropout=0.0,
-                                             ignore=10,
-                                             freeze=False,
-                                             pretrained=None,
-                                             mapping=None)
+        # if params['finaldist']:
+        #     self.dist_embed_dir = EmbedLayer(num_embeddings=20, embedding_dim=params['dist_dim'],
+        #                                      dropout=0.0,
+        #                                      ignore=10,
+        #                                      freeze=False,
+        #                                      pretrained=None,
+        #                                      mapping=None)
 
 
         self.loss = nn.BCEWithLogitsLoss(reduction='none')
 
 
         # hyper-parameters for tuning
-        self.dist_dim = params['dist_dim']
-        self.type_dim = params['type_dim']
+        # self.dist_dim = params['dist_dim']
+        # self.type_dim = params['type_dim']
         self.drop_i = params['drop_i']
         self.drop_o = params['drop_o']
         self.gradc = params['gc']
@@ -48,38 +48,39 @@ class BaseModel(nn.Module):
         self.batch_size = params['batch']
 
         # other parameters
-        self.mappings = {'word': maps['word2idx'], 'type': maps['type2idx']}
-        self.inv_mappings = {'word': maps['idx2word'], 'type': maps['idx2type']}
+        self.mappings = {'word': maps['word2idx']}
+        self.inv_mappings = {'word': maps['idx2word']}
         self.word_dim = params['word_dim']
         self.lstm_dim = params['lstm_dim']
         self.rel_size = sizes['rel_size']
         self.ignore_label = lab2ign
 
-        self.finaldist = params['finaldist']
+        # self.finaldist = params['finaldist']
         self.dataset = params['dataset']
 
-    def input_layer(self, words_, ner_):
+    def input_layer(self, words_):
         """
         Word/NER/COREF Embedding Layer
         """
         word_vec = self.word_embed(words_)
-        ner_vec = self.ner_emb(ner_)
+        # todo 可以把ner换成单词的词性，然后cat
+        # ner_vec = self.ner_emb(ner_)
         # return torch.cat([word_vec, coref_vec, ner_vec], dim=-1)
-        return torch.cat([word_vec, ner_vec], dim=-1)
+        return torch.cat([word_vec], dim=-1)
 
     @staticmethod
     def merge_tokens(info, enc_seq, type="mean"):
         """
         Merge tokens into mentions;
-        Find which tokens belong to a mention (based on start-end ids) and average them
+        Find which tokens belong to a mention (based on pos ids)
         @:param enc_seq all_word_len * dim  4469*192
         """
         mentions = []
         for i in range(info.shape[0]):
-            if type == "max":
-                mention = torch.max(enc_seq[info[i, 2]: info[i, 3], :], dim=-2)[0]
-            else:  # mean
-                mention = torch.mean(enc_seq[info[i, 2]: info[i, 3], :], dim=-2)
+            # if type == "max":
+            #     mention = torch.max(enc_seq[info[i, 2]: info[i, 3], :], dim=-2)[0]
+            # else:  # mean
+            mention = enc_seq[info[i, 2], :]
             mentions.append(mention)
         mentions = torch.stack(mentions)
         return mentions
@@ -101,22 +102,15 @@ class BaseModel(nn.Module):
         return entities
 
     @staticmethod
-    def select_pairs(nodes_info, idx, dataset='docred'):
+    def select_pairs(nodes_info, idx, dataset='PRE_data'):
         """
         Select (entity node) pairs for classification based on input parameter restrictions (i.e. their entity type).
         """
         sel = torch.zeros(nodes_info.size(0), nodes_info.size(1), nodes_info.size(1)).to(nodes_info.device)
         a_ = nodes_info[..., 0][:, idx[0]]
         b_ = nodes_info[..., 0][:, idx[1]]
-        if dataset == 'cdr':
-            c_ = nodes_info[..., 1][:, idx[0]]
-            d_ = nodes_info[..., 1][:, idx[1]]
-            condition1 = torch.eq(a_, 0) & torch.eq(b_, 0) & torch.ne(idx[0], idx[1])  # needs to be an entity node (id=0)
-            condition2 = torch.eq(c_, 1) & torch.eq(d_, 2)  # h=medicine, t=disease
-            sel = torch.where(condition1 & condition2, torch.ones_like(sel), sel)
-        else:
-            condition1 = torch.eq(a_, 0) & torch.eq(b_, 0) & torch.ne(idx[0], idx[1])
-            sel = torch.where(condition1, torch.ones_like(sel), sel)
+        condition1 = torch.eq(a_, 0) & torch.eq(b_, 0) & torch.ne(idx[0], idx[1])
+        sel = torch.where(condition1, torch.ones_like(sel), sel)
         return sel.nonzero().unbind(dim=1), sel.nonzero()[:, 0]
 
     def count_predictions(self, y, t):

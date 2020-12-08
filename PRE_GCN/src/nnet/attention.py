@@ -215,9 +215,9 @@ class SelfAttention(nn.Module):
         # input = self.dropout(input)
         # memory = self.dropout(memory)
         batch_size = input.shape[0]
-        enttiy_size = input.shape[1]
-        input = input.reshape(batch_size, enttiy_size*enttiy_size, -1)
-        memory = memory.reshape(batch_size, enttiy_size*enttiy_size, -1)
+        entity_size = input.shape[1]
+        input = input.reshape(batch_size, entity_size*entity_size, -1)
+        memory = memory.reshape(batch_size, entity_size*entity_size, -1)
         mask = mask.reshape(batch_size,-1)
         input_dot = self.input_linear(input)
         cross_dot = torch.bmm(input * self.dot_scale, memory.permute(0, 2, 1).contiguous())
@@ -227,7 +227,7 @@ class SelfAttention(nn.Module):
         weight_one = F.softmax(att, dim=-1)
         output_one = torch.bmm(weight_one, memory)
 
-        return torch.cat([input, output_one], dim=-1).reshape(batch_size, enttiy_size, enttiy_size, -1)
+        return torch.cat([input, output_one], dim=-1).reshape(batch_size, entity_size, entity_size, -1)
 
 
 def attention(query, key, value, mask=None, dropout=None):

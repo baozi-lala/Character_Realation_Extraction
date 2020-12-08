@@ -215,7 +215,7 @@ class EncoderLSTM(nn.Module):
         # sort sequence
         sorted_idx, original_idx, reverse_idx = self.sort(input_lengths)
 
-        # pad - sort - pack
+        # pad - sort - pack 按照最大长度进行pad
         input = nn.utils.rnn.pad_sequence(input, batch_first=True, padding_value=0)
         input = input[sorted_idx][reverse_idx]  # big-to-small
 

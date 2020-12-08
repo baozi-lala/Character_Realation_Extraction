@@ -4,10 +4,10 @@
 from collections import OrderedDict
 from recordtype import recordtype
 import numpy as np
+import json
 
-
-EntityInfo = recordtype('EntityInfo', 'id type mstart mend sentNo')
-PairInfo = recordtype('PairInfo', 'type direction cross intrain')
+EntityInfo = recordtype('EntityInfo', 'id name sentNo pos postotal')
+PairInfo = recordtype('PairInfo', 'type')
 
 
 def chunks(l, n, sen_len=None, word_len=None):
@@ -70,7 +70,7 @@ def get_distance(e1_sentNo, e2_sentNo):
     return distance
 
 
-def read(input_file, documents, entities, relations):
+def read(input_file, documents, entities, relations,word2index):
     """
     Read the full document at a time.
     """
@@ -79,28 +79,21 @@ def read(input_file, documents, entities, relations):
     # relation_have = {}
     entities_cor_id = {}
     with open(input_file, 'r', encoding='utf-8') as infile:
-        print("input file ", input_file, "DocRED" in input_file)
-        if 'DocRED' in input_file:
-            split_n = '||'
-        else:
-            split_n = '|'
-        for line in infile:
-            line = line.strip().split('\t')
-            pmid = line[0]
-            text = line[1]
-            # print("pmid:\t" + pmid)
-            # print("text:\t", str(text).encode())
-            # print("line:\t", str(line).encode())
-            entities_dist = []
-            sen_len = len(text.split(split_n))
-            word_len = sum([len(t.split(' ')) for t in text.split(split_n)])
-            if "DocRED" in input_file:
-                prs = chunks(line[2:], 18, sen_len, word_len)
-            else:  # for CDR
-                prs = chunks(line[2:], 17)
+        print("input file ", input_file, "DocPRE" in input_file)
+        for line in infile.readlines():
+            line = json.loads(line)
+            pmid = str(line['id'])
+            text = line['sentences']
+            if not text:
+                continue
+            # sen_len = len(text)
+            # word_len = sum([len(t) for t in text])
+            # if "DocPRE" in input_file:
+            #     # todo 没看懂
+            #     prs = chunks(line[2:], 18, sen_len, word_len)
 
             if pmid not in documents:
-                documents[pmid] = [t.split(' ') for t in text.split(split_n)]
+                documents[pmid] = text
 
             if pmid not in entities:
                 entities[pmid] = OrderedDict()
@@ -110,49 +103,45 @@ def read(input_file, documents, entities, relations):
 
             # max sentence length
             lengths += [max([len(s) for s in documents[pmid]])]
-            sents += [len(text.split(split_n))]
-
+            sents += [len(text)]
+            sen_len=[]
+            sen_len+=[len(s) for s in documents[pmid]]
+            lens = []
+            lens.append(0)
+            for l in sen_len:
+                lens.append(lens[-1] + l)
             allp = 0
-            for p in prs:
+            for p in line['entities']:
                 # entities
-                if p[5] not in entities[pmid]:
-                    entities[pmid][p[5]] = EntityInfo(p[5], p[7], p[8], p[9], p[10])
-                    entities_dist.append((p[5], min([int(a) for a in p[8].split(':')])))
+                id=str(p['id'])
+                if id not in entities[pmid]:
+                    senId=':'.join([x.split("-")[0] for x in p['pos']])
+                    pos=':'.join([x.split("-")[-1] for x in p['pos']])
+                    postotal=':'.join([str(x) for x in getPos(p['pos'],lens)])
+                    if p['name'] in word2index:
+                        name_id=word2index[p['name']]
+                    else:
+                        name_id=-1
 
-                if p[11] not in entities[pmid]:
-                    entities[pmid][p[11]] = EntityInfo(p[11], p[13], p[14], p[15], p[16])
-                    entities_dist.append((p[11], min([int(a) for a in p[14].split(':')])))
+                    entities[pmid][id] = EntityInfo(p['id'], name_id, senId, pos, postotal)
 
-                entity_pair_dis = get_distance(p[10], p[16])
-                assert p[0] != 'not_include' or 'DocRED' not in input_file
-                if p[0] == 'not_include': # for cdr dataset
-                    continue
-                if (p[5], p[11]) not in relations[pmid]:
-                    relations[pmid][(p[5], p[11])] = [PairInfo(p[0], p[1], entity_pair_dis, p[-1])]
-                    assert PairInfo(p[0], p[1], entity_pair_dis, p[-1]) in relations[pmid][(p[5], p[11])]
-                    allp += 1
+            for label in line['lables']:
+                if (str(label['p1']), str(label['p2'])) not in relations[pmid]:
+                    relations[pmid][(str(label['p1']), str(label['p2']))]=[PairInfo(label['r'])]
                 else:
-                    assert PairInfo(p[0], p[1], entity_pair_dis, p[-1]) not in relations[pmid][(p[5], p[11])]
-                    relations[pmid][(p[5], p[11])].append(PairInfo(p[0], p[1], entity_pair_dis, p[-1]))
-                    # print(p[5]+ "\t" + p[11])
-                    # print('duplicates!')
+                    relations[pmid][(str(label['p1']), str(label['p2']))].append(PairInfo(label['r']))
 
-            entities_dist.sort(key=lambda x: x[1], reverse=False)
+
             entities_cor_id[pmid] = {}
-            for coref_id, key in enumerate(entities_dist):
-                entities_cor_id[pmid][key[0]] = coref_id + 1
-            # assert len(relations[pmid]) == allp
-
-    if "CDR" in input_file:
-        todel = []
-        for pmid, d in relations.items():
-            if not relations[pmid]:
-                todel += [pmid]
-        print(input_file)
-        print("del list", str(todel))
-        for pmid in todel:
-            del documents[pmid]
-            del entities[pmid]
-            del relations[pmid]
 
     return lengths, sents, documents, entities, relations, entities_cor_id
+def getPos(pos,lens):
+    pos_totol=[]
+    for p in pos:
+        s_p=p.split("-")
+        pos_totol.append(lens[int(s_p[0])]+int(s_p[1]))
+    return pos_totol
+
+
+
+

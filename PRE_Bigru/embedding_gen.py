@@ -25,7 +25,7 @@ class gen_embedding:
             self.embed_bert =True
             self.word_dim = 768
             # 启动
-            self.bert = BertClient(ip='localhost',check_version=False, check_length=False)
+            # self.bert = BertClient(ip='localhost',check_version=False, check_length=False)
     def bert_wordMap(self):
         wordMap = {}
         all_content = []
@@ -33,7 +33,7 @@ class gen_embedding:
         time_str = datetime.datetime.now().isoformat()
         tempstr = "{}:{}".format(time_str, str('加载语料库'))
         print(tempstr)
-        for line in open(os.path.join(self.data_path, 'sentences_all.txt')):
+        for line in open(os.path.join(self.data_path, 'origin_data/sentences_all.txt'),encoding="utf-8"):
             all_content += line.split('###')[2].split()
         # 语料库中不重复的词
         all_content = list(set(all_content))
@@ -127,7 +127,6 @@ def query_from_database():
 
 
 def draw_bar_png():
-    import pandas as pd
     import matplotlib.pyplot as plt
     # f=open("relation_calcu_count.txt","r")
     relation_calcu_count=query_from_database()
@@ -157,7 +156,7 @@ def draw_bar_png():
     # plt.show()
     plt.savefig('./origin_data/data_bar_chart_a.png')
 if __name__ == '__main__':
-    # g = gen_embedding()
-    # g.bert_wordMap()
+    g = gen_embedding()
+    g.bert_wordMap()
     # divide_train_dev_test()
     # draw_bar_png()

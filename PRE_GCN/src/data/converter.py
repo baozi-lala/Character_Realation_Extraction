@@ -12,7 +12,7 @@ def to_device(device, x):
 
 
 def concat_examples(batch, device=None, padding=-1):
-    assert device is None or isinstance(device, torch.device)
+    # assert device is None or isinstance(device, torch.device)
     if len(batch) == 0:
         raise ValueError('batch is empty')
 

@@ -46,7 +46,7 @@ def train(parameters):
     ###################################
     # Training
     ###################################
-    trainer = Trainer(train_loader, parameters, {'train': train_data, 'test': test_data}, model_folder, prune_recall)
+    trainer = Trainer(train_loader, parameters, {'train': train_data, 'test': test_data}, model_folder)
 
     trainer.run()
 

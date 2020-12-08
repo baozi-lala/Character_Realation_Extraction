@@ -43,22 +43,22 @@ def write_errors(preds, info, ofile, map_=None, type="max"):
     with open(ofile+'.errors', 'w', encoding="utf-8") as outfile:
         for p, i in zip(preds, info):
             # i = [i_ for i_ in i if i_]
-            assert len(p) == len(i)
+            # assert len(p) == len(i)
 
             for k, j in zip(p, i):
                 if k[0] not in j['rel']:
-                    outfile.write('Prediction: {} \t Score: {}\t Truth: {} \t Type: {} \n'.format(map_[k[0]], k[1],  "-".join([map_[rel] for rel in j['rel']]), j['cross']))
+                    outfile.write('Prediction: {} \t Score: {}\t Truth: {} \n'.format(map_[k[0]], k[1],  "-".join([map_[rel] for rel in j['rel']])))
                     doc = [it for items in j['doc'] for it in items]
                     outfile.write('{}\n{}\n'.format(j['pmid'], ' '.join(doc)))
 
-                    gg1 = ' | '.join([' '.join(doc[int(m1):int(m2)]) for m1,m2 in
-                                      zip(j['entA'].mstart.split(':'), j['entA'].mend.split(':'))])
-                    gg2 = ' | '.join([' '.join(doc[int(m1):int(m2)]) for m1, m2 in
-                                      zip(j['entB'].mstart.split(':'), j['entB'].mend.split(':'))])
+                    gg1 = ' | '.join([' '.join(doc[int(m1)]) for m1 in
+                                      j['entA'].pos.split(':')])
+                    gg2 = ' | '.join([' '.join(doc[int(m1)]) for m1 in
+                                      j['entB'].postotal.split(':')])
 
                     outfile.write('Arg1: {} | {}\n'.format(j['entA'].id, gg1))
                     outfile.write('Arg2: {} | {}\n'.format(j['entB'].id, gg2))
-                    outfile.write('Distance: {}\n'.format(solve(j['sentA'].split(':'), j['sentB'].split(':'))))
+                    # outfile.write('Distance: {}\n'.format(solve(j['sentA'].split(':'), j['sentB'].split(':'))))
                     outfile.write('\n')
     print('DONE')
 
@@ -77,7 +77,7 @@ def write_preds_old(preds, info, ofile, map_=None):
                     pass
                 else:
                     outfile.write('{}\n'.format('|'.join([j['pmid'].split('__')[0],
-                                                          j['entA'].id, j['entB'].id, str(j['cross']),
+                                                          j['entA'].id, j['entB'].id,
                                                           str(solve(j['sentA'].split(':'), j['sentB'].split(':'))),
                                                           map_[k], "##".join([map_[rel] for rel in list(j['rel'])])])))
     print('DONE')
@@ -96,10 +96,13 @@ def write_preds(preds, info, ofile, map_=None):
                 if map_[k[0]] == '1:NR:2' or map_[k[0]] == 'NA':
                     pass
                 else:
-                    outfile.write('{}\n'.format('|'.join([j['pmid'].split('__')[0],
-                                                          j['entA'].id, j['entB'].id, str(j['cross']),
+                    # print("##".join([map_[int(rel)] for rel in list(j['rel'])]))
+                    # print(map_)
+
+                    outfile.write('{}\n'.format('|'.join([str(j['pmid'].split('__')[0]),
+                                                          str(j['entA'].id), str(j['entB'].id),
                                                           str(solve(j['sentA'].split(':'), j['sentB'].split(':'))),
-                                                          map_[k[0]], "##".join([map_[rel] for rel in list(j['rel'])])])))
+                                                          str(map_[k[0]]), "##".join([map_[rel] for rel in list(j['rel'])])])))
     print('DONE')
 
 

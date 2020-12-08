@@ -21,32 +21,19 @@ class transformers_word_handle():
     CLS = "[CLS]"
     SEP = "[SEP]"
 
-    def __init__(self, model_type, model_name, dataset="docred"):
+    def __init__(self, model_type, model_name, dataset="PRE_data"):
         super().__init__()
         self.model_name = model_name
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
-        if dataset=="docred":
+        if dataset=="PRE_data":
             if self.model_name == 'bert-large-uncased-whole-word-masking' and os.path.exists('./bert_large/'):
                 print("find large bert")
                 self.tokenizer = tokenizer_class.from_pretrained('./bert_large/')
-            elif self.model_name == 'bert-base-uncased' and os.path.exists('./bert_base/'):
+            elif self.model_name == 'bert-base-chinese' and os.path.exists('./bert_base/'):
                 print("find base bert")
-                self.tokenizer = tokenizer_class.from_pretrained('./bert_base/')
+                self.tokenizer = tokenizer_class.from_pretrained('bert-base-chinese')
             else:
                 self.tokenizer = tokenizer_class.from_pretrained(self.model_name)
-        else: # for cdr dataset
-            if self.model_name == 'bert-large-uncased-whole-word-masking' and os.path.exists('./biobert_large/'):
-                print("find large biobert")
-                self.tokenizer = tokenizer_class.from_pretrained('./biobert_large/')
-            elif self.model_name == 'bert-base-uncased' and os.path.exists('./biobert_base/'):
-                print("find base biobert")
-                self.tokenizer = tokenizer_class.from_pretrained('./biobert_base/')
-            elif 'albert' in self.model_name or self.model_name == 'xlnet-large-cased':
-                self.tokenizer = tokenizer_class.from_pretrained(self.model_name)
-            else:
-                print(self.model_name)
-                print("can't find biobert")
-                exit(1)
         # self.model = model_class.from_pretrained(model_name).to(device)
         self.max_len = 512  # self.model.embeddings.position_embeddings.weight.size(0)
         # self.dim = self.model.embeddings.position_embeddings.weight.size(1)

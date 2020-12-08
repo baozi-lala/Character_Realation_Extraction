@@ -12,7 +12,6 @@
 import logging
 
 import sys
-from collections import defaultdict
 
 import numpy as np
 import os
@@ -20,7 +19,6 @@ import json
 
 import yaml
 import datetime
-from bert_serving.client import BertClient
 import pymongo
 
 

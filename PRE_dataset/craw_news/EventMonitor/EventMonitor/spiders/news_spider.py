@@ -13,7 +13,6 @@ from lxml import etree
 import urllib.request
 from urllib.parse import quote, quote_plus
 
-import redis
 import os
 import sys
 from .extract_news import *

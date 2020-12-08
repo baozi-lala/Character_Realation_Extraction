@@ -27,7 +27,7 @@ np.set_printoptions(threshold=np.inf)
 # random.seed(0)
 
 class Trainer:
-    def __init__(self, loader, params, data, model_folder, prune_recall):
+    def __init__(self, loader, params, data, model_folder):
         """
         Trainer object.
 
@@ -41,7 +41,6 @@ class Trainer:
         self.acc_total = Accuracy()
 
         self.data = data
-        self.test_prune_recall = prune_recall
         self.params = params
         self.rel_size = loader.n_rel
         self.loader = loader
@@ -76,10 +75,9 @@ class Trainer:
     def init_model(self):
         model_0 = GLRE(self.params, self.loader.pre_embeds,
                             sizes={'word_size': self.loader.n_words,
-                                   'type_size': self.loader.n_type, 'rel_size': self.loader.n_rel},
+                                   'rel_size': self.loader.n_rel},
                             maps={'word2idx': self.loader.word2index, 'idx2word': self.loader.index2word,
-                                  'rel2idx': self.loader.rel2index, 'idx2rel': self.loader.index2rel,
-                                  'type2idx': self.loader.type2index, 'idx2type': self.loader.index2type},
+                                  'rel2idx': self.loader.rel2index, 'idx2rel': self.loader.index2rel,},
                             lab2ign=self.loader.label2ignore)
 
         # GPU/CPU
@@ -232,7 +230,7 @@ class Trainer:
                 label = relation_label[i]
                 if label < 0:
                     break
-                assert self.loader.label2ignore == 0
+                # assert self.loader.label2ignore == 0
                 if label == self.loader.label2ignore:
                     self.acc_NA.add(predictions[i] == label)
                 else:
@@ -294,8 +292,7 @@ class Trainer:
                     if r == self.loader.label2ignore:
                         continue
 
-                    test_result.append((int(multi_truth[r]) == 1, float(pred_pairs[pair_id][r]),
-                                        test_infos[pair_id]['intrain'],test_infos[pair_id]['cross'], self.loader.index2rel[r], r,
+                    test_result.append((int(multi_truth[r]) == 1, float(pred_pairs[pair_id][r]), self.loader.index2rel[r], r,
                                         len(test_info) - 1, pair_id))
 
 
@@ -414,7 +411,7 @@ class Trainer:
         :return:
         """
         print("total_recall", total_recall)  # dev=12323
-        assert total_recall == self.test_prune_recall['0-max'], print(self.test_prune_recall['0-max'])
+        # assert total_recall == self.test_prune_recall['0-max'], print(self.test_prune_recall['0-max'])
         if total_recall == 0:
             total_recall = 1  # for test
         pr_x = []
@@ -466,14 +463,6 @@ class Trainer:
         print('Ignore ma_f1 {:3.4f} | input_theta {:3.4f} | test_result F1 {:3.4f} | P {:3.4f} | R {:3.4f} | AUC {:3.4f}'
                 .format(f1, input_theta, f1_arr[w], pr_y[w], pr_x[w], auc))
 
-        if isTest:
-            # item[3]
-            print(self.test_prune_recall)
-            self.prune_f1_cal(test_result, self.test_prune_recall['0-1'], input_theta, 0, 1)
-            self.prune_f1_cal(test_result, self.test_prune_recall['1-3'], input_theta, 1, 3)
-            self.prune_f1_cal(test_result, self.test_prune_recall['0-3'], input_theta, 0, 3)
-            self.prune_f1_cal(test_result, self.test_prune_recall['1-max'], input_theta, 1, 10000)
-            self.prune_f1_cal(test_result, self.test_prune_recall['3-max'], input_theta, 3, 10000)
 
         return input_theta, w, f1_all
 
@@ -558,15 +547,15 @@ class Trainer:
 
             temp = []
             for e in b['ents']:
-                temp += [[e[0] + ent_count, e[1], e[2] + word_count, e[3] + word_count, e[4] + sent_count, e[4], e[5]]]  # id  type start end sent_id
-
+                temp += [[e[0] + ent_count, e[1], e[4] + word_count, e[2] + sent_count, e[5]]]  # id  name_id pos sent_id
+            # id, name_id,pos,sent_id,type
             new_batch['entities'] += [np.array(temp)]
             word_count += sum([len(s) for s in b['text']])
             ent_count = max([t[0] for t in temp]) + 1
             sent_count += len(b['text'])
         # print(ent_count)
         # print(word_count)
-        new_batch['entities'] = np.concatenate(new_batch['entities'], axis=0)  # 56, 6
+        new_batch['entities'] = np.concatenate(new_batch['entities'], axis=0)  # 126, 5
         new_batch['entities'] = torch.as_tensor(new_batch['entities']).long().to(self.device)
         new_batch['bert_token'] = torch.as_tensor(np.concatenate(new_batch['bert_token'])).long().to(self.device)
         new_batch['bert_mask'] = torch.as_tensor(np.concatenate(new_batch['bert_mask'])).long().to(self.device)
@@ -576,15 +565,15 @@ class Trainer:
         converted_batch = concat_examples(batch_, device=self.device, padding=-1)
 
         converted_batch['adjacency'][converted_batch['adjacency'] == -1] = 0
-        converted_batch['dist_dir'][converted_batch['dist_dir'] == -1] = 0
+        # converted_batch['dist_dir'][converted_batch['dist_dir'] == -1] = 0
 
-        new_batch['adjacency'] = converted_batch['adjacency'].float()  # 2,71,71
-        new_batch['distances_dir'] = converted_batch['dist_dir'].long()  # 2,71,71
+        new_batch['adjacency'] = converted_batch['adjacency'].float()  # 8,107,107
+        # new_batch['distances_dir'] = converted_batch['dist_dir'].long()  # 2,71,71
         new_batch['relations'] = converted_batch['rels'].float()
         new_batch['multi_relations'] = converted_batch['multi_rels'].float().clone()
         if istrain and self.params['NA_NUM'] < 1.0:
             NA_id = self.loader.label2ignore
-            index = new_batch['multi_relations'][:, :, :, NA_id].nonzero()
+            index = np.nonzero(new_batch['multi_relations'][:, :, :, NA_id])
             if index.size(0)!=0:
                 value = (torch.rand(len(index)) < self.params['NA_NUM']).float()
                 if (value == 0).all():
@@ -597,7 +586,7 @@ class Trainer:
         new_batch['words'] = converted_batch['words'][converted_batch['words'] != -1].long().contiguous()  # 382
         new_batch['rgcn_adjacency'] = convert_3dsparse_to_4dsparse([b['rgcn_adjacency'] for b in batch]).to(self.device)
         # print(new_batch['dep_adj'])
-        new_batch['ners'] = converted_batch['ners'][converted_batch['ners'] != -1].long().contiguous()
+        # new_batch['ners'] = converted_batch['ners'][converted_batch['ners'] != -1].long().contiguous()
 
         if save:
             # print(new_batch['section'][:, 0].sum(dim=0).item())

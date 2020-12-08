@@ -12,6 +12,7 @@ class RGCN_Layer(nn.Module):
         self.layers = num_layers
         self.device = torch.device("cuda" if params['gpu'] != -1 else "cpu")
         self.mem_dim = mem_dim
+        # todo 这个是啥？
         self.relation_cnt = relation_cnt
         self.in_dim = in_dim
 
@@ -44,31 +45,34 @@ class RGCN_Layer(nn.Module):
 
         maskss = []
         denomss = []
+        # 边的信息 矩阵W
         for batch in range(adj.shape[0]):
             masks = []
             denoms = []
+            # relation_cnt=rgcn_adjacency.shape[0]
             for i in range(self.relation_cnt):
+                # 第batch中第i种节点  边
                 denom = torch.sparse.sum(adj[batch, i], dim=1).to_dense()
                 t_g = denom + torch.sparse.sum(adj[batch, i], dim=0).to_dense()
                 mask = t_g.eq(0)
                 denoms.append(denom.unsqueeze(1))
                 masks.append(mask)
+            # 所有不同种类的节点的边
             denoms = torch.sum(torch.stack(denoms), 0)
             denoms = denoms + 1
             masks = sum(masks)
+            # 不同batch中的信息
             maskss.append(masks)
             denomss.append(denoms)
-        denomss = torch.stack(denomss) # 40 * 61 * 1
+        denomss = torch.stack(denomss) # 8 * 107 * 1
 
         # sparse rgcn layer
         for l in range(self.layers):
             gAxWs = []
             for j in range(self.relation_cnt):
                 gAxW = []
-
                 bxW = self.W_r[j][l](gcn_inputs)
                 for batch in range(adj.shape[0]):
-
                     xW = bxW[batch]  # 255 * 25
                     AxW = torch.sparse.mm(adj[batch][j], xW)  # 255, 25
                     # AxW = AxW/ denomss[batch][j]  # 255, 25

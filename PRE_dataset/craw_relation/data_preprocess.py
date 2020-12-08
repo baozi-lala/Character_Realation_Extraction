@@ -13,7 +13,7 @@ import json
 """
 class NameRec(object):
     def __init__(self):
-        conn = pymongo.MongoClient('192.168.87.97', 27017)
+        conn = pymongo.MongoClient('127.0.0.1', 27017)
         self.col_news = conn['person_rel_dataset']['news']
         self.col_name_rec = conn['data']['news_namerec_res']
         # self.col1_map = conn['person_relation_dataset']['delete_repeate_map']
@@ -26,12 +26,12 @@ class NameRec(object):
 
     # 获取关系字典，方便查询
     def get_relation_map(self):
-        f_relation = open('files/relation_total.txt')
+        f_relation = open('files/relation_final.txt',encoding="utf-8")
         relation_map = {}
         for line in f_relation:
             res=line.split("###")
             key=res[0]
-            relation_map[key]=res[-1]
+            relation_map[key]=res[-1].strip()
         return relation_map
     '''存储至Mongodb数据库和文件'''
     def process_item(self):
@@ -39,7 +39,7 @@ class NameRec(object):
             doc = self.col_news.find(no_cursor_timeout = True).sort("_id")
             # f = open('files/train_v2.txt', 'a+')
             # f_bag = open('files/train_bag.txt', 'a+')
-            f_error = open('files/error_file_v2.txt', 'a+')
+            f_error = open('files/error_file_v2.txt', 'w', encoding='utf-8')
             file = open('files/data.json', 'w', encoding='utf-8')
 
             # todo 分成训练集，验证集和测试集
@@ -57,53 +57,54 @@ class NameRec(object):
                     sentences=self.cut_sent(content)
                     # 去除无关姓名
                     sentences = self.delete_last_sent(sentences)
-                    data,sentence_segments,sentence_value,sentence_label,sentence_segments_relation,par_relation_list,name_count,sentence_to_bag=self.NLP_segment(sentences)
+                    data = {}
+                    data["id"] = sample_id
+                    data["title"] = title
+                    sentence_segments,sentence_value,sentence_label,sentence_segments_relation,par_relation_list,name_count,sentence_to_bag=self.NLP_segment(data,sentences)
                     if sentence_value==None:
                         print(d['_id'],sentence_segments)
                         f_error.writelines(str(d['_id']) + "###" +str(sample_id) + "###"+ sentence_segments + '\n')
                         continue
-                except:
+                except Exception as e:
+                    print(e)
                     print(str(d['_id'])+"发生异常")
                     continue
-                else:
-                    d_map=d
-                    d_map["id"]=sample_id
-                    d_map["name_count"] = name_count
-                    d_map["type"]=par_relation_list
-                    d_map["sentences"] = sentences
-                    d_map["sentence_segments"]=sentence_segments
-                    d_map["sentence_value"] = sentence_value
-                    d_map["sentence_label"] = sentence_label
-                    d_map["sentence_segments_relation"]=sentence_segments_relation
-                    d_map["sentence_to_bag"]=sentence_to_bag
-                    try:
-                        self.col_name_rec.insert(dict(d_map))
-                        print("insert 成功")
-                    except Exception as err:
-                        print("数据库插入异常:",err)
-                        continue
-                    try:
-                        data["title"]=title
-                        # Writing JSON data
-                        json.dump(data, file)
+                try:
+                    # Writing JSON data
+                    with open('files/data.json', 'a+', encoding='utf-8') as f:
+                        json.dump(data, f,ensure_ascii=False)
+                        f.write("\n")
+                except Exception as err:
+                    print("文件插入异常:",err)
+                    continue
 
-                    except Exception as err:
-                        print("文件插入异常:",err)
-                        continue
-
-            f_error.close()
+                d_map=d
+                d_map["id"]=sample_id
+                d_map["name_count"] = name_count
+                d_map["type"]=par_relation_list
+                d_map["sentences"] = sentences
+                d_map["sentence_segments"]=sentence_segments
+                d_map["sentence_value"] = sentence_value
+                d_map["sentence_label"] = sentence_label
+                d_map["sentence_segments_relation"]=sentence_segments_relation
+                d_map["sentence_to_bag"]=sentence_to_bag
+                try:
+                    self.col_name_rec.insert(dict(d_map))
+                    print("insert 成功")
+                except Exception as err:
+                    print("数据库插入异常:",err)
+                    continue
             file.close()
+            f_error.close()
         except (pymongo.errors.WriteError, KeyError) as err:
             pass
             # raise DropItem("Duplicated Item: {}".format(item['name']))
 
-    def NLP_segment(self,tests):
+    def NLP_segment(self,data,tests):
         """ NLP分词，更精准的中文分词、词性标注与命名实体识别
             标注集请查阅 https://github.com/hankcs/HanLP/blob/master/data/dictionary/other/TagPKU98.csv
             或者干脆调用 Sentence#translateLabels() 转为中文
           """
-        data = {}
-
         name_count = defaultdict(int)
         name_list=set()
         # 人物实体位置
@@ -120,8 +121,6 @@ class NameRec(object):
         sentence_to_bag={}
         # 人物实体{name,pos}
         entities=[]
-
-
         for sent_id,sentence in enumerate(tests):
             if len(sentence)>600:
                 return "单句太长",None,None,None,None,None,None
@@ -150,13 +149,12 @@ class NameRec(object):
             for pos_id,a in enumerate(segs):
                 x = a.split('/')
                 # 获取单词与词性
-                word_value.append(str(x[0]))
+                word_value.append(str(x[0].strip().replace("\r","").replace("\n","")).strip())
                 word_label.append(str(x[-1]))
                 if x[-1] in self.ner:
                     x[0]=''.join(e for e in x[0] if e.isalnum())
                     name_list.add(x[0])
-                    pos_list[x[0]].append(str(sent_id+"-"+pos_id))
-
+                    pos_list[x[0]].append(str(str(sent_id)+"-"+str(pos_id)))
                     name_count[x[0]] += 1
                     name_list_tmp.add(x[0])
             name_list_tmp = list(name_list_tmp)
@@ -166,7 +164,7 @@ class NameRec(object):
             # 词性：list[list[str]]
             sentence_label.append(word_label)
             if len(name_list_tmp) > 10:
-                return "单句人名太多",None,None,None,None,None,None,None
+                return "单句人名太多",None,None,None,None,None,None
             # if len(name_list_tmp) < 2:
             #     continue
             # 每个句子中的人名两两配对结果
@@ -194,7 +192,7 @@ class NameRec(object):
         data["lables"] = lables
         # todo 每一个sample要按照包的形式组织方便研究内容二的输入
 
-        return data,sentence_segments,sentence_value,sentence_label,sentence_segments_relation,par_relation_list,name_count,sentence_to_bag
+        return sentence_segments,sentence_value,sentence_label,sentence_segments_relation,par_relation_list,name_count,sentence_to_bag
 
 
     # 划分句子到相对应的包
@@ -237,31 +235,14 @@ class NameRec(object):
         return sentence_relation
     def get_labels(self,sentence_relation,name_list):
         labels=[]
-        entity={}
         for e_p in sentence_relation:
+            entity = {}
             person_type=e_p.split("###")
-            persons=person_type[0].split("%%%%")
+            persons=person_type[0].split("%%%")
             entity["p1"], entity["p2"] =name_list.index(persons[0]),name_list.index(persons[-1])
             entity["r"]=person_type[-1]
             labels.append(entity)
         return labels
-        # '\n遍历列表方法3 （设置遍历开始初始位置，只改变了起始序号）：'
-        # 空列表不影响结果
-        for i, person_1 in enumerate(name_list):
-            for j, person_2 in enumerate(name_list[i + 1:], i + 1):
-                key_1=person_1 + "%%%" + person_2
-                key_2=person_2 + "%%%" + person_1
-                if key_1 in self.relation_map:
-                    type=self.relation_map[key_1]
-                elif key_2 in self.relation_map:
-                    type=self.relation_map[key_2]
-                else:
-                    type = "unknown"
-                entity_pair={}
-                entity_pair["h"]
-                stri=person_1 + "%%%" + person_2 + "%%%" + type
-                sentence_relation.append(stri)
-        return sentence_relation
     # 分句
     def cut_sent(self,para):
         para = re.sub('([﹒﹔﹖﹗．。！？\?])([^”’])', r"\1\n\2", para)  # 单字符断句符

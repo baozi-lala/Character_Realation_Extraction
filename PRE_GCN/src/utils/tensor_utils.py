@@ -10,7 +10,7 @@ def split_n_pad(nodes, section, pad=0, return_mask=False):
     :param pad:
     :return:
     """
-    assert nodes.shape[0] == sum(section.tolist()), print(nodes.shape[0], sum(section.tolist()))
+    # assert nodes.shape[0] == sum(section.tolist()), print(nodes.shape[0], sum(section.tolist()))
     nodes = torch.split(nodes, section.tolist())
     nodes = pad_sequence(nodes, batch_first=True, padding_value=pad)
     if not return_mask:
@@ -35,6 +35,7 @@ def rm_pad(input, lens, max_v=None):
     """
     if max_v is None:
         max_v = lens.max()
+    #     temp_ : batch_size*max_doclen
     temp_ = torch.arange(max_v).unsqueeze(0).repeat(lens.size(0), 1).to(input.device)
     remove_pad = (temp_ < lens.unsqueeze(1))
     return input[remove_pad]

@@ -21,7 +21,7 @@ class ConfigLoader:
     def load_cmd():
         parser = argparse.ArgumentParser()
         # parser.add_argument('--config', type=str, required=True, help='Yaml parameter file')
-        parser.add_argument('--train', action='store_true', help='Training mode - model is saved')
+        parser.add_argument('--train', action='store_true', default=True, help='Training mode - model is saved')
         parser.add_argument('--test', action='store_true', help='Testing mode - needs a model to load')
 
         parser.add_argument("--feature", default=str)
@@ -29,13 +29,15 @@ class ConfigLoader:
         parser.add_argument("--remodelfile", type=str)
         parser.add_argument('--input_theta', type=float, default=-1)
 
-        parser.add_argument('--config_file', type=str)
-        parser.add_argument('--output_path', type=str, default="dev")
-        parser.add_argument('--test_data', type=str)
-        parser.add_argument('--save_pred', type=str)
+        parser.add_argument('--config_file', type=str,default='./configs/docpre_basebert.yaml')
+        parser.add_argument('--output_path', type=str, default='./results/docpre-dev/docred_basebert_full/')
+        parser.add_argument('--test_data', type=str,default='../data/DocPRE/processed/dev.json')
+        parser.add_argument('--save_pred', type=str,default='dev')
 
-        parser.add_argument('--batch', type=int, help='batch size')
+        parser.add_argument('--batch', type=int, default=8, help='batch size')
         # parser.add_argument()
+
+        parser.add_argument('--CUDA_VISIBLE_DEVICES', type=str, default='0')
         return parser.parse_args()
 
     def load_config(self):
@@ -75,11 +77,11 @@ class DataLoader:
         self.pre_embeds = OrderedDict()
         self.max_distance = -9999999999
         self.singletons = []
-        self.label2ignore = -1
+        self.label2ignore = 0
         self.ign_label = self.params['label2ignore']
         self.dataset = params['dataset']
-        if params['dataset'] == "docred":
-            self.base_file = "../data/DocRED/processed/"
+        if params['dataset'] == "PRE_data":
+            self.base_file = "../data/DocPRE/processed/"
         else:
             self.base_file = "../data/CDR/processed/"
 
@@ -87,31 +89,19 @@ class DataLoader:
         if self.params['emb_method']:
             self.word2index = json.load(open(os.path.join(self.base_file, "word2id.json"),'r', encoding='UTF-8'))
         else:
-            self.word2index = json.load(open(os.path.join(self.base_file, "word2id_vec.json")))
+            self.word2index = json.load(open(os.path.join(self.base_file, "word2id.json"),'r', encoding='UTF-8'))
         self.index2word = {v: k for k, v in self.word2index.items()}
         self.n_words, self.word2count = len(self.word2index.keys()), {'<UNK>': 1}
 
-        self.type2index = json.load(open(os.path.join(self.base_file, 'ner2id.json')))
-        self.index2type = {v: k for k, v in self.type2index.items()}
-        self.n_type, self.type2count = len(self.type2index.keys()), {}
+        # self.name2index = json.load(open(os.path.join(self.base_file, 'name2id.json')))
+        # self.name2type = {v: k for k, v in self.name2index.items()}
+        # self.n_name, self.name2count = len(self.name2index.keys()), {}
 
-        self.rel2index = json.load(open(os.path.join(self.base_file, 'rel2id.json')))
+        self.rel2index = json.load(open(os.path.join(self.base_file, 'rel2id.json'),'r', encoding='UTF-8'))
         self.index2rel = {v: k for k, v in self.rel2index.items()}
         self.n_rel, self.rel2count = len(self.rel2index.keys()), {}
 
-        self.documents, self.entities, self.pairs, self.pronouns_mentions = OrderedDict(), OrderedDict(), OrderedDict(), OrderedDict()
-
-        self.dis2idx_dir = np.zeros((800), dtype='int64') # distance feature
-        self.dis2idx_dir[1] = 1
-        self.dis2idx_dir[2:] = 2
-        self.dis2idx_dir[4:] = 3
-        self.dis2idx_dir[8:] = 4
-        self.dis2idx_dir[16:] = 5
-        self.dis2idx_dir[32:] = 6
-        self.dis2idx_dir[64:] = 7
-        self.dis2idx_dir[128:] = 8
-        self.dis2idx_dir[256:] = 9
-        self.dis_size = 20
+        self.documents, self.entities, self.pairs = OrderedDict(), OrderedDict(), OrderedDict()
 
 
     def find_ignore_label(self):
@@ -122,7 +112,6 @@ class DataLoader:
         for key, val in self.index2rel.items():
             if val == self.ign_label:
                 self.label2ignore = key
-        assert self.label2ignore != -1
         print("label2ignore ", self.label2ignore)
 
     @staticmethod
@@ -169,17 +158,6 @@ class DataLoader:
                 self.word2count[word] = 0
             self.word2count[word] += 1
 
-    def add_type(self, type):
-        if type not in self.type2index:
-            self.type2index[type] = self.n_type
-            self.type2count[type] = 1
-            self.index2type[self.n_type] = type
-            self.n_type += 1
-        else:
-            if type not in self.type2count:
-                self.type2count[type] = 0
-            self.type2count[type] += 1
-
     def add_sentence(self, sentence):
         for word in sentence:
             self.add_word(word)
@@ -213,19 +191,19 @@ class DataLoader:
 
     def load_doc_embeds(self):
         self.pre_embeds = OrderedDict()
-        word2id = json.load(open('./data/DocRED/processed/word2id_vec.json', 'r', encoding='utf-8'))
+        word2id = json.load(open('../data/DocPRE/processed/word2id.json', 'r', encoding='utf-8'))
         id2word = {id: word for word, id in word2id.items()}
         import numpy as np
-        vecs = np.load('./data/DocRED/processed/vec.npy')
-        word_dim = 100
+        vecs = np.load('../data/DocPRE/processed/vec.npy')
+        word_dim = 768
         for id in range(vecs.shape[0]):
             word = id2word.get(id)
             vec = vecs[id]
             word_dim = vec.shape
             self.add_word(word)
             self.pre_embeds[word] = np.asarray(vec)
-            if self.params['lowercase']:
-                self.pre_embeds[word.lower()] = np.asarray(vec)
+            # if self.params['lowercase']:
+            #     self.pre_embeds[word.lower()] = np.asarray(vec)
         self.pre_words = [w for w, e in self.pre_embeds.items()]
         print('  Found pre-trained word embeddings: {} x {}'.format(len(self.pre_embeds), word_dim), end="\n")
 
@@ -240,7 +218,7 @@ class DataLoader:
         Read input.
         """
         lengths, sents, self.documents, self.entities, self.pairs, self.entities_cor_id = \
-            read(self.input, self.documents, self.entities, self.pairs)
+            read(self.input, self.documents, self.entities, self.pairs,self.word2index)
 
         self.find_max_length(lengths)
 
@@ -266,8 +244,6 @@ class DataLoader:
 
         print('  Max entities number in document: {}'.format(max([len(e) for e in self.entities.values()])))  #41(train)  42(dev)
         print('  Entities: {}'.format(sum([len(e) for e in self.entities.values()])))
-        for k, v in sorted(self.type2count.items()):
-            print('\t{:<10}\t{:<5}\tID: {}'.format(k, v, self.type2index[k]))
 
         # 28(train) 27(dev)
         print('  Singletons: {}/{}'.format(len(self.singletons), self.n_words))
@@ -282,7 +258,6 @@ class DataLoader:
         if parameters['emb_method']:
             self.load_embeds(self.params['word_dim'])
         else:
-            assert parameters['dataset'] == 'docred'
             self.load_doc_embeds()
 
         print(' --> Words + Pre-trained: {:<5}'.format(self.n_words))

@@ -19,19 +19,19 @@ class GLRE(BaseModel):
         super(GLRE, self).__init__(params, pembeds, loss_weight, sizes, maps, lab2ign)
         # contextual semantic information
         self.more_lstm = params['more_lstm']
-        if self.more_lstm:
-            if 'bert-large' in params['pretrain_l_m'] or 'albert-large' in params['pretrain_l_m']:
-                lstm_input = 1024
-            elif 'bert-base' in params['pretrain_l_m'] or 'albert-base' in params['pretrain_l_m']:
-                lstm_input = 768
-            elif 'albert-xlarge' in params['pretrain_l_m']:
-                lstm_input = 2048
-            elif 'albert-xxlarge' in params['pretrain_l_m']:
-                lstm_input = 4096
-            elif 'xlnet-large' in params['pretrain_l_m']:
-                lstm_input = 1024
-        else:
-            lstm_input = params['word_dim'] + params['type_dim']
+        # if self.more_lstm:
+        #     if 'bert-large' in params['pretrain_l_m'] or 'albert-large' in params['pretrain_l_m']:
+        #         lstm_input = 1024
+        #     elif 'bert-base-chinese' in params['pretrain_l_m'] or 'albert-base' in params['pretrain_l_m']:
+        #         lstm_input = 768
+        #     elif 'albert-xlarge' in params['pretrain_l_m']:
+        #         lstm_input = 2048
+        #     elif 'albert-xxlarge' in params['pretrain_l_m']:
+        #         lstm_input = 4096
+        #     elif 'xlnet-large' in params['pretrain_l_m']:
+        #         lstm_input = 1024
+        # else:
+        lstm_input = params['word_dim']
         self.encoder = EncoderLSTM(input_size=lstm_input,
                                    num_units=params['lstm_dim'],
                                    nlayers=params['bilstm_layers'],
@@ -39,86 +39,29 @@ class GLRE(BaseModel):
                                    dropout=params['drop_i'])
 
         pretrain_hidden_size = params['lstm_dim'] * 2
-        if 'bert-large' in params['pretrain_l_m'] and 'albert-large-v2' != params['pretrain_l_m']:
-            if self.more_lstm:
-                pretrain_hidden_size = params['lstm_dim']*2
-            else:
-                pretrain_hidden_size = 1024
-            if params['dataset']=='docred' and os.path.exists('./bert_large') \
-                    or params['dataset']=='cdr' and os.path.exists('./biobert_large'):
-                if params['dataset']=='docred':
-                    self.pretrain_lm = BertModel.from_pretrained('./bert_large/')
-                else:
-                    self.pretrain_lm = BertModel.from_pretrained('./biobert_large/')
-            else:
-                self.pretrain_lm = BertModel.from_pretrained('bert-large-uncased-whole-word-masking') # bert-base-uncased
-        elif params['pretrain_l_m'] == 'bert-base' and params['pretrain_l_m']!='albert-base-v2':
-            if self.more_lstm:
-                pretrain_hidden_size = params['lstm_dim']*2
-            else:
-                pretrain_hidden_size = 768
-            if params['dataset']=='docred' and os.path.exists('./bert_base') \
-                    or params['dataset']=='cdr' and os.path.exists('./biobert_base'):
-                if params['dataset']=='docred':
-                    self.pretrain_lm = BertModel.from_pretrained('./bert_base/')
-                else:
-                    self.pretrain_lm = BertModel.from_pretrained('./biobert_base/')
-            else:
-                self.pretrain_lm = BertModel.from_pretrained('bert-base-uncased') # bert-base-uncased
-        elif params['pretrain_l_m'] == 'albert-base-v2':
-            if self.more_lstm:
-                pretrain_hidden_size = params['lstm_dim']*2
-            else:
-                pretrain_hidden_size = 768
-            self.pretrain_lm = AlbertModel.from_pretrained('albert-base-v2')
-        elif params['pretrain_l_m'] == 'albert-large-v2':
-            if self.more_lstm:
-                pretrain_hidden_size = params['lstm_dim']*2
-            else:
-                pretrain_hidden_size = 1024
-            self.pretrain_lm = AlbertModel.from_pretrained('albert-large-v2')
-        elif params['pretrain_l_m'] == 'albert-xlarge-v2':
-            if self.more_lstm:
-                pretrain_hidden_size = params['lstm_dim']*2
-            else:
-                pretrain_hidden_size = 2048
-            if os.path.exists('./albert-xlarge-v2/'):
-                self.pretrain_lm = AlbertModel.from_pretrained('./albert-xlarge-v2/')
-            else:
-                self.pretrain_lm = AlbertModel.from_pretrained('albert-xlarge-v2')
-        elif params['pretrain_l_m'] == 'albert-xxlarge-v2':
-            if self.more_lstm:
-                pretrain_hidden_size = params['lstm_dim']*2
-            else:
-                pretrain_hidden_size = 4096
-            self.pretrain_lm = AlbertModel.from_pretrained('albert-xxlarge-v2')
-        elif params['pretrain_l_m'] == 'albert-xxlarge-v1':
-            if self.more_lstm:
-                pretrain_hidden_size = params['lstm_dim']*2
-            else:
-                pretrain_hidden_size = 4096
-            if os.path.exists('./albert-xxlarge-v1/'):
-                self.pretrain_lm = AlbertModel.from_pretrained('./albert-xxlarge-v1/')
-            else:
-                self.pretrain_lm = AlbertModel.from_pretrained('albert-xxlarge-v1')
-        elif params['pretrain_l_m'] == 'xlnet-large-cased':
-            if self.more_lstm:
-                pretrain_hidden_size = params['lstm_dim']*2
-            else:
-                pretrain_hidden_size = 1024
-            self.pretrain_lm = XLNetModel.from_pretrained('xlnet-large-cased')
+        # if params['pretrain_l_m'] == 'bert-base-chinese' and params['pretrain_l_m']!='albert-base-v2':
+        #     if self.more_lstm:
+        #         pretrain_hidden_size = params['lstm_dim']*2
+        #     else:
+        #         pretrain_hidden_size = 768
+        #     if params['dataset']=='PRE_data' and os.path.exists('./bert-base-chinese'):
+        #         self.pretrain_lm = BertModel.from_pretrained('./bert-base-chinese/')
+        #     else:
+        #         self.pretrain_lm = BertModel.from_pretrained('bert-base-chinese') # bert-base-chinese
+
 
         self.pretrain_l_m_linear_re = nn.Linear(pretrain_hidden_size, params['lstm_dim'])
 
-        if params['types']:
-            self.type_embed = EmbedLayer(num_embeddings=3,
-                                         embedding_dim=params['type_dim'],
-                                         dropout=0.0)
+        # if params['types']:
+        #     self.type_embed = EmbedLayer(num_embeddings=3,
+        #                                  embedding_dim=params['type_dim'],
+        #                                  dropout=0.0)
+        # todo 这里加第二部分模型结构
 
         # global node rep
         rgcn_input_dim = params['lstm_dim']
-        if params['types']:
-            rgcn_input_dim += params['type_dim']
+        # if params['types']:
+        #     rgcn_input_dim += params['type_dim']
 
         self.rgcn_layer = RGCN_Layer(params, rgcn_input_dim, params['rgcn_hidden_dim'], params['rgcn_num_layers'], relation_cnt=5)
         self.rgcn_linear_re = nn.Linear(params['rgcn_hidden_dim']*2, params['rgcn_hidden_dim'])
@@ -128,15 +71,15 @@ class GLRE(BaseModel):
         else:
             input_dim = params['rgcn_hidden_dim'] * 2
 
-        if params['local_rep']:
-            self.local_rep_layer = Local_rep_layer(params)
-            if not params['global_rep']:
-                input_dim = params['lstm_dim'] * 2
-            else:
-                input_dim += params['lstm_dim'] * 2
-
-        if params['finaldist']:
-            input_dim += params['dist_dim'] * 2
+        # if params['local_rep']:
+        #     self.local_rep_layer = Local_rep_layer(params)
+        #     if not params['global_rep']:
+        #         input_dim = params['lstm_dim'] * 2
+        #     else:
+        #         input_dim += params['lstm_dim'] * 2
+        #
+        # if params['finaldist']:
+        #     input_dim += params['dist_dim'] * 2
 
 
         if params['context_att']:
@@ -157,12 +100,11 @@ class GLRE(BaseModel):
                                      dropout=params['drop_o'])
 
         self.rel_size = sizes['rel_size']
-        self.finaldist = params['finaldist']
+        # self.finaldist = params['finaldist']
         self.context_att = params['context_att']
         self.pretrain_l_m = params['pretrain_l_m']
-        self.local_rep = params['local_rep']
+        # self.local_rep = params['local_rep']
         self.query = params['query']
-        assert self.query == 'init' or self.query == 'global'
         self.global_rep = params['global_rep']
         self.lstm_encoder = params['lstm_encoder']
 
@@ -180,10 +122,10 @@ class GLRE(BaseModel):
         Graph Layer -> Construct a document-level graph
         The graph edges hold representations for the connections between the nodes.
         Args:
-            nodes:
-            info:        (Tensor, 5 columns) entity_id, entity_type, start_wid, end_wid, sentence_id
+            nodes: entities+mentions+sentences
+            info:        (Tensor, 5 columns) entity_id, entity_nameId, pos_id, sentence_id,type
             section:     (Tensor <B, 3>) #entities/#mentions/#sentences per batch
-            positions:   distances between nodes (only M-M and S-S)
+            # positions:   distances between nodes (only M-M and S-S)
 
         Returns: (Tensor) graph, (Tensor) tensor_mapping, (Tensors) indices, (Tensor) node information
         """
@@ -193,7 +135,7 @@ class GLRE(BaseModel):
         nodes_info = self.node_info(section, info)                 # info/node: node type | semantic type | sentence ID
 
 
-        nodes = torch.cat((nodes, self.type_embed(nodes_info[:, 0])), dim=1)
+        # nodes = torch.cat((nodes, self.type_embed(nodes_info[:, 0])), dim=1)
 
         # re-order nodes per document (batch)
         nodes = self.rearrange_nodes(nodes, section)
@@ -210,24 +152,26 @@ class GLRE(BaseModel):
 
         # MENTION & ENTITY NODES
         encoded_seq_token = rm_pad(encoded_seq, word_sec)
+        # todo entities即为mentions，不需要进行平均
         mentions = self.merge_tokens(info, encoded_seq_token)
         entities = self.merge_mentions(info, mentions)  # entity nodes
         return (entities, mentions, sentences)
 
     def node_info(self, section, info):
         """
-        info:        (Tensor, 5 columns) entity_id, entity_type, start_wid, end_wid, sentence_id
-        Col 0: node type | Col 1: semantic type | Col 2: sentence id
+        info:        (Tensor, 5 columns) entity_id, entity_nameId, pos_id, sentence_id,type
+        section:    Tensor  entities/#mentions/#sentences per batch
+        Col 0: node type  | Col 1: sentence id
         """
         typ = torch.repeat_interleave(torch.arange(3).to(self.device), section.sum(dim=0))  # node types (0,1,2)
         rows_ = torch.bincount(info[:, 0]).cumsum(dim=0)
         rows_ = torch.cat([torch.tensor([0]).to(self.device), rows_[:-1]]).to(self.device)  #
-
-        stypes = torch.neg(torch.ones(section[:, 2].sum())).to(self.device).long()  # semantic type sentences = -1
-        all_types = torch.cat((info[:, 1][rows_], info[:, 1], stypes), dim=0)
+        # 去掉实体类型的信息
+        # stypes = torch.neg(torch.ones(section[:, 2].sum())).to(self.device).long()  # semantic type sentences = -1
+        # all_types = torch.cat((info[:, 1][rows_], info[:, 1], stypes), dim=0)
         sents_ = torch.arange(section.sum(dim=0)[2]).to(self.device)
         sent_id = torch.cat((info[:, 4][rows_], info[:, 4], sents_), dim=0)  # sent_id
-        return torch.cat((typ.unsqueeze(-1), all_types.unsqueeze(-1), sent_id.unsqueeze(-1)), dim=1)
+        return torch.cat((typ.unsqueeze(-1),  sent_id.unsqueeze(-1)), dim=1)
 
     @staticmethod
     def rearrange_nodes(nodes, section):
@@ -246,9 +190,10 @@ class GLRE(BaseModel):
 
     def forward(self, batch):
 
-        input_vec = self.input_layer(batch['words'], batch['ners'])
+        input_vec = self.input_layer(batch['words'])
 
         if self.pretrain_l_m == 'none':
+            # pad+encode
             encoded_seq = self.encoding_layer(input_vec, batch['section'][:, 3])
             encoded_seq = rm_pad(encoded_seq, batch['section'][:, 3])
             encoded_seq = self.pretrain_l_m_linear_re(encoded_seq)
@@ -272,10 +217,12 @@ class GLRE(BaseModel):
             encoded_seq = self.pretrain_l_m_linear_re(context_output)
 
         encoded_seq = split_n_pad(encoded_seq, batch['word_sec'])
+        # todo 可以在这里加第二部分
 
         # Graph
         if self.pretrain_l_m == 'none':
-            assert self.lstm_encoder
+            # assert self.lstm_encoder
+            # 每个节点的表示，第二个维度相同，第一个维度为个数
             nodes = self.node_layer(encoded_seq, batch['entities'], batch['word_sec'])
         else:
             nodes = self.node_layer(encoded_seq, batch['entities'], batch['word_sec'])
@@ -290,31 +237,33 @@ class GLRE(BaseModel):
         relation_rep_t = nodes[:, c_idx]
         # relation_rep = self.rgcn_linear_re(relation_rep)  # global node rep
 
-        if self.local_rep:
-            entitys_pair_rep_h, entitys_pair_rep_t = self.local_rep_layer(batch['entities'], batch['section'], init_nodes, nodes)
-            if not self.global_rep:
-                relation_rep_h = entitys_pair_rep_h
-                relation_rep_t = entitys_pair_rep_t
-            else:
-                relation_rep_h = torch.cat((relation_rep_h, entitys_pair_rep_h), dim=-1)
-                relation_rep_t = torch.cat((relation_rep_t, entitys_pair_rep_t), dim=-1)
+        # if self.local_rep:
+        #     entitys_pair_rep_h, entitys_pair_rep_t = self.local_rep_layer(batch['entities'], batch['section'], init_nodes, nodes)
+        #     if not self.global_rep:
+        #         relation_rep_h = entitys_pair_rep_h
+        #         relation_rep_t = entitys_pair_rep_t
+        #     else:
+        #         relation_rep_h = torch.cat((relation_rep_h, entitys_pair_rep_h), dim=-1)
+        #         relation_rep_t = torch.cat((relation_rep_t, entitys_pair_rep_t), dim=-1)
 
-        if self.finaldist:
-            dis_h_2_t = batch['distances_dir'] + 10
-            dis_t_2_h = -batch['distances_dir'] + 10
-            dist_dir_h_t_vec = self.dist_embed_dir(dis_h_2_t)
-            dist_dir_t_h_vec = self.dist_embed_dir(dis_t_2_h)
-            relation_rep_h = torch.cat((relation_rep_h, dist_dir_h_t_vec), dim=-1)
-            relation_rep_t = torch.cat((relation_rep_t, dist_dir_t_h_vec), dim=-1)
+        # if self.finaldist:
+        #     dis_h_2_t = batch['distances_dir'] + 10
+        #     dis_t_2_h = -batch['distances_dir'] + 10
+        #     dist_dir_h_t_vec = self.dist_embed_dir(dis_h_2_t)
+        #     dist_dir_t_h_vec = self.dist_embed_dir(dis_t_2_h)
+        #     relation_rep_h = torch.cat((relation_rep_h, dist_dir_h_t_vec), dim=-1)
+        #     relation_rep_t = torch.cat((relation_rep_t, dist_dir_t_h_vec), dim=-1)
         graph_select = torch.cat((relation_rep_h, relation_rep_t), dim=-1)
 
         if self.context_att:
+            # todo 删除multi_relation
             relation_mask = torch.sum(torch.ne(batch['multi_relations'], 0), -1).gt(0)
             graph_select = self.self_att(graph_select, graph_select, relation_mask)
 
         # Classification
         r_idx, c_idx = torch.meshgrid(torch.arange(nodes_info.size(1)).to(self.device),
                                       torch.arange(nodes_info.size(1)).to(self.device))
+        # 待预测的实体对
         select, _ = self.select_pairs(nodes_info, (r_idx, c_idx), self.dataset)
         graph_select = graph_select[select]
         if self.mlp_layer>-1:
