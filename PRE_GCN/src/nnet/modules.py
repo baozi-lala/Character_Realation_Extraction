@@ -4,6 +4,7 @@ import torch
 from torch import nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from torch.autograd import Variable
+from torch.nn.utils import rnn
 
 
 class LockedDropout(nn.Module):
@@ -210,13 +211,14 @@ class EncoderLSTM(nn.Module):
 
     def get_init(self, bsz, i):
         return self.init_hidden[i].expand(-1, bsz, -1).contiguous(), self.init_c[i].expand(-1, bsz, -1).contiguous()
-
+    # 输入的是整个文档
     def forward(self, input, input_lengths):
         # sort sequence
         sorted_idx, original_idx, reverse_idx = self.sort(input_lengths)
 
         # pad - sort - pack 按照最大长度进行pad
         input = nn.utils.rnn.pad_sequence(input, batch_first=True, padding_value=0)
+        # 排序后reverse
         input = input[sorted_idx][reverse_idx]  # big-to-small
 
         bsz, slen = input.size(0), input.size(1)
@@ -243,6 +245,77 @@ class EncoderLSTM(nn.Module):
             outputs.append(output)
 
         # assert torch.equal(outputs[-1][reverse_idx][original_idx][reverse_idx], inpu)
+        return outputs[-1][reverse_idx][original_idx][reverse_idx], hiddens[-1][reverse_idx][original_idx][reverse_idx]
+
+class EncoderRNN(nn.Module):
+    def __init__(self, input_size, num_units, nlayers, bidir, dropout):
+        super().__init__()
+        self.rnns = []
+        for i in range(nlayers):
+            if i == 0:
+                input_size_ = input_size
+                output_size_ = num_units
+            else:
+                input_size_ = num_units if not bidir else num_units * 2
+                output_size_ = num_units
+            self.rnns.append(nn.GRU(input_size_, output_size_, 1, bidirectional=bidir, batch_first=True))
+        self.rnns = nn.ModuleList(self.rnns)
+        self.init_hidden = nn.ParameterList([nn.Parameter(torch.Tensor(2 if bidir else 1, 1, num_units).zero_()) for _ in range(nlayers)])
+        self.init_c = nn.ParameterList(
+            [nn.Parameter(torch.Tensor(2 if bidir else 1, 1, num_units).zero_()) for _ in range(nlayers)])
+        self.dropout = LockedDropout(dropout)
+        self.nlayers = nlayers
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        for rnn in self.rnns:
+            for name, p in rnn.named_parameters():
+                if 'weight' in name:
+                    p.data.normal_(std=0.1)
+                else:
+                    p.data.zero_()
+
+    def get_init(self, bsz, i):
+        return self.init_hidden[i].expand(-1, bsz, -1).contiguous(), self.init_c[i].expand(-1, bsz, -1).contiguous()
+
+    @staticmethod
+    def sort(lengths):
+        sorted_len, sorted_idx = lengths.sort()  # indices that result in sorted sequence
+        _, original_idx = sorted_idx.sort(0, descending=True)
+        reverse_idx = torch.linspace(lengths.size(0) - 1, 0, lengths.size(0)).long()  # for big-to-small
+
+        return sorted_idx, original_idx, reverse_idx
+    def forward(self, input, input_lengths=None):
+        # sort sequence
+        sorted_idx, original_idx, reverse_idx = self.sort(input_lengths)
+
+        # pad - sort - pack 按照最大长度进行pad
+        input = nn.utils.rnn.pad_sequence(input, batch_first=True, padding_value=0)
+        input = input[sorted_idx][reverse_idx]  # big-to-small
+
+        bsz, slen = input.size(0), input.size(1)
+        output = input
+        outputs = []
+        hiddens = []
+        lens = list(input_lengths[sorted_idx][reverse_idx].data)
+
+        for i in range(self.nlayers):
+            hidden,c = self.get_init(bsz, i)
+            output = self.dropout(output)
+            output = rnn.pack_padded_sequence(output, lens, batch_first=True)
+            self.rnns[i].flatten_parameters()
+            output,  (hidden, cn) = self.rnns[i](output, (hidden, c))
+
+
+            if input_lengths is not None:
+                output, _ = rnn.pad_packed_sequence(output, batch_first=True)
+                if output.size(1) < slen: # used for parallel
+                    padding = Variable(output.data.new(1, 1, 1).zero_())
+                    output = torch.cat([output, padding.expand(output.size(0), slen-output.size(1), output.size(2))], dim=1)
+
+            hiddens.append(hidden.permute(1, 0, 2).contiguous().view(bsz, -1))
+            outputs.append(output)
+
         return outputs[-1][reverse_idx][original_idx][reverse_idx], hiddens[-1][reverse_idx][original_idx][reverse_idx]
 
 

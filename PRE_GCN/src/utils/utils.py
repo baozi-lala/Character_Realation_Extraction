@@ -304,3 +304,25 @@ def print_options(params):
     print("Parameters:")
     for key, value in params.items():
         print("\t - %s\t %s" % (key, value))
+
+def get_max_lengths(data_path):
+    word_length_list = []
+    sent_length_list = []
+    with open(data_path) as csv_file:
+        reader = csv.reader(csv_file, quotechar='"')
+        for idx, line in enumerate(reader):
+            text = ""
+            for tx in line[1:]:
+                text += tx.lower()
+                text += " "
+            sent_list = sent_tokenize(text)
+            sent_length_list.append(len(sent_list))
+
+            for sent in sent_list:
+                word_list = word_tokenize(sent)
+                word_length_list.append(len(word_list))
+
+        sorted_word_length = sorted(word_length_list)
+        sorted_sent_length = sorted(sent_length_list)
+
+    return sorted_word_length[int(0.8*len(sorted_word_length))], sorted_sent_length[int(0.8*len(sorted_sent_length))]

@@ -20,7 +20,7 @@ out_dim: 256
 #dist_dim: 20
 finaldist: false
 types: false
-bilstm_layers: 1
+bilstm_layers: 2
 rgcn_hidden_dim: 256
 rgcn_num_layers: 2
 gcn_in_drop: 0.2
@@ -47,6 +47,20 @@ NA_NUM: 0.5  # 0.1==5:1
 mlp_layers: 1
 mlp_dim: 512
 
+# gru
+sen_len : 70  # 60：每个句子的固定长度（词个数）：如果真实句子长度大于该值，则舍弃后面的，小于则补充
+#  pre_embed : flags.pre_embed  # 是否进行了训练（得到word2vec的词向量）
+pos_limit : 15  # 词与实体最大的距离
+pos_dim : 5  # 设置位置嵌入的维度
+#  hidden_dim : flags.hidden_dim
+#  maxWordLen: 256 #与Bert对齐，不能改变
+input_gru: 256
+gru_dim: 256
+output_gru: 256
+gru_layers: 2
+gru_dropout: 0.5  # 失活概率：0.5
+pretrained_model: 'Bert'
+
 # data based
 train_data: ../data/DocPRE/processed/train.json
 test_data: ../data/DocPRE/processed/dev.json
@@ -61,7 +75,7 @@ show_class: false
 early_stop: true
 save_model: true
 freeze_words: true
-
+more_gru: true
 # extra
 seed: 0
 shuffle_data: true

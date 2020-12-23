@@ -8,17 +8,17 @@ from models.basemodel import BaseModel
 from nnet.attention import SelfAttention
 from transformers import *
 
-from nnet.modules import Classifier, EncoderLSTM, EmbedLayer, LockedDropout
+from nnet.modules import Classifier, EncoderLSTM, EmbedLayer, LockedDropout,EncoderRNN
 from nnet.rgcn import RGCN_Layer
 from utils.tensor_utils import rm_pad, split_n_pad
 import os
 from nnet.attention import MultiHeadAttention
-
+from nnet.bigru import BiGRU
 class GLRE(BaseModel):
     def __init__(self, params, pembeds, loss_weight=None, sizes=None, maps=None, lab2ign=None):
         super(GLRE, self).__init__(params, pembeds, loss_weight, sizes, maps, lab2ign)
         # contextual semantic information
-        self.more_lstm = params['more_lstm']
+        self.more_gru = params['more_gru']
         # if self.more_lstm:
         #     if 'bert-large' in params['pretrain_l_m'] or 'albert-large' in params['pretrain_l_m']:
         #         lstm_input = 1024
@@ -57,6 +57,10 @@ class GLRE(BaseModel):
         #                                  embedding_dim=params['type_dim'],
         #                                  dropout=0.0)
         # todo 这里加第二部分模型结构
+        if self.more_gru:
+            gru_input_dim = params['lstm_dim']
+            self.gru_layer = BiGRU(params,gru_input_dim)
+
 
         # global node rep
         rgcn_input_dim = params['lstm_dim']
@@ -215,9 +219,11 @@ class GLRE(BaseModel):
                 context_output = self.encoding_layer(context_output, batch['section'][:, 3])
                 context_output = rm_pad(context_output, batch['section'][:, 3])
             encoded_seq = self.pretrain_l_m_linear_re(context_output)
-
+        # 按句子分
         encoded_seq = split_n_pad(encoded_seq, batch['word_sec'])
         # todo 可以在这里加第二部分
+        if self.more_gru:
+            output_gru = self.gru_layer(encoded_seq, batch['entities'],batch['section'][:, 0],batch['section'][:, 2], batch['rgcn_adjacency'])
 
         # Graph
         if self.pretrain_l_m == 'none':
@@ -263,9 +269,11 @@ class GLRE(BaseModel):
         # Classification
         r_idx, c_idx = torch.meshgrid(torch.arange(nodes_info.size(1)).to(self.device),
                                       torch.arange(nodes_info.size(1)).to(self.device))
+        # graph_select = torch.cat((graph_select, output_gru), dim=-1)
         # 待预测的实体对
         select, _ = self.select_pairs(nodes_info, (r_idx, c_idx), self.dataset)
         graph_select = graph_select[select]
+        graph_select = torch.cat((graph_select, output_gru), dim=-1)
         if self.mlp_layer>-1:
             graph_select = self.out_mlp(graph_select)
         graph = self.classifier(graph_select)

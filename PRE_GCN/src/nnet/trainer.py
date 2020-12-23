@@ -46,7 +46,7 @@ class Trainer:
         self.loader = loader
         self.model_folder = model_folder
 
-        self.device = torch.device("cuda" if params['gpu'] != -1 else "cpu")
+        self.device = torch.device("cuda:"+str(params['gpu']) if params['gpu'] != -1 else "cpu")
         self.gc = params['gc']
         self.epoch = params['epoch']
         self.es = params['early_stop']
@@ -142,7 +142,7 @@ class Trainer:
         Main Training Loop.
         """
         print('\n======== START TRAINING: {} ========\n'.format(
-            datetime.datetime.now().strftime("%d-%m-%y_%H:%M:%S")))
+        datetime.datetime.now().strftime("%d-%m-%y_%H:%M:%S")))
 
         random.shuffle(self.data['train'])  # shuffle training data at least once
         best_dev_f1 = -1.0
