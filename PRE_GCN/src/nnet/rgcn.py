@@ -37,20 +37,21 @@ class RGCN_Layer(nn.Module):
         """
 
         :param nodes:  batch_size * node_size * node_emb
-        :param adj:  batch_size * 5 * node_size * node_size
-        :param section:  (Tensor <B, 3>) #entities/#mentions/#sentences per batch
+        :param adj:  batch_size * 3 * node_size * node_size
+        :param section:  (Tensor <B, 2>) #entities/#sentences per batch
         :return:
         """
         gcn_inputs = self.in_drop(nodes)
-
+        # todo 还没看懂
         maskss = []
         denomss = []
+        edge_cnt=3
         # 边的信息 矩阵W
         for batch in range(adj.shape[0]):
             masks = []
             denoms = []
             # relation_cnt=rgcn_adjacency.shape[0]
-            for i in range(self.relation_cnt):
+            for i in range(edge_cnt):
                 # 第batch中第i种节点  边
                 denom = torch.sparse.sum(adj[batch, i], dim=1).to_dense()
                 t_g = denom + torch.sparse.sum(adj[batch, i], dim=0).to_dense()
@@ -64,12 +65,12 @@ class RGCN_Layer(nn.Module):
             # 不同batch中的信息
             maskss.append(masks)
             denomss.append(denoms)
-        denomss = torch.stack(denomss) # 8 * 107 * 1
+        denomss = torch.stack(denomss) # 8 * 68 * 1
 
         # sparse rgcn layer
         for l in range(self.layers):
             gAxWs = []
-            for j in range(self.relation_cnt):
+            for j in range(edge_cnt):
                 gAxW = []
                 bxW = self.W_r[j][l](gcn_inputs)
                 for batch in range(adj.shape[0]):

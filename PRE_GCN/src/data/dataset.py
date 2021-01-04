@@ -82,39 +82,34 @@ class DocRelationDataset:
             # todo 先把bert部分删掉
             # bert_token, bert_mask, bert_starts = self.bert.subword_tokenize_to_ids(words)
             bert_token, bert_mask, bert_starts =[],[],[]
-            # NER
-            # ner = [0] * sum(sens_len)
-            # for id_, (e, i) in enumerate(self.loader.entities[pmid].items()):
-            #     for sent_id,pos in zip(i.sentNo.split(':'), i.pos.split(':')):
-            #         for j in range(int(m1), int(m2)):
-            #             ner[j] = self.mappings.type2index[itype]
 
             # ENTITIES [id, name, sen_id,pos1,pos2, node_type_id] + NODES [id, type, start, end, node_type_id]
             nodes = []
             ent = []
             ent_sen_mask = np.zeros((len(self.loader.entities[pmid].items()), len(sens_len)), dtype=np.float32)
+            # entities=[]
             for id_, (e, i) in enumerate(self.loader.entities[pmid].items()):
-                nodes += [[id_, i.name, min([int(senid) for senid in i.sentNo.split(':')]),
-                           min([int(pos) for pos in i.pos.split(':')]),min([int(postotal) for postotal in i.postotal.split(':')]), 0]]
+                nodes += [[id_, i.name,[int(x) for x in i.sentNo.split(':')],
+                           [int(x) for x in i.pos.split(':')],[int(x) for x in i.postotal.split(':')], 0]]
+                # entities+= [[id_, i.name, i.sentNo,i.pos,i.postotal, 0]]
 
                 for sen_id in i.sentNo.split(':'):
                     ent_sen_mask[id_][int(sen_id)] = 1.0
             entity_size = len(nodes)
 
-            nodes_mention = []
-            for id_, (e, i) in enumerate(self.loader.entities[pmid].items()):
-                for sent_id, pos,pos2 in zip(i.sentNo.split(':'), i.pos.split(':'),i.postotal.split(':')):
-                    # ent += [[id_, self.mappings.type2index[i.type.split(':')[0]], min(int(m1), bert_max_len-2), min(int(m2), bert_max_len-1), int(sent_id), 1]]
-                    ent += [[id_, i.name, int(sent_id), int(pos),int(pos2), 1]]
-                    nodes_mention += [[id_, i.name, int(sent_id), int(pos), int(pos2), 1]]
-
-            ent.sort(key=lambda x: x[0], reverse=False)
-            nodes_mention.sort(key=lambda x: x[0], reverse=False)
-            nodes += nodes_mention
-            # todo nodes=nodes_mention
+            # nodes_mention = []
+            # for id_, (e, i) in enumerate(self.loader.entities[pmid].items()):
+            #     for sent_id, pos,pos2 in zip(i.sentNo.split(':'), i.pos.split(':'),i.postotal.split(':')):
+            #         # ent += [[id_, self.mappings.type2index[i.type.split(':')[0]], min(int(m1), bert_max_len-2), min(int(m2), bert_max_len-1), int(sent_id), 1]]
+            #         ent += [[id_, i.name, int(sent_id), int(pos),int(pos2), 1]]
+            #         nodes_mention += [[id_, i.name, int(sent_id), int(pos), int(pos2), 1]]
+            ent+=nodes
+            # ent.sort(key=lambda x: x[0], reverse=False)
+            # nodes_mention.sort(key=lambda x: x[0], reverse=False)
+            # nodes += nodes_mention
             for s, sentence in enumerate(self.loader.documents[pmid]):
-                nodes += [[s, s, s, s,s, 2]]
-            # entity：0,,mention:1,sentence:2
+                nodes += [[s, s, [s], [s],[s], 2]]
+            # entity：0,sentence:2
             nodes = np.array(nodes)
 
             max_node_cnt = max(max_node_cnt, nodes.shape[0])
@@ -160,6 +155,7 @@ class DocRelationDataset:
             r_Eid, c_Eid = nodes[xv, 0], nodes[yv, 0]# entity id
             r_Ename, c_Ename = nodes[xv, 1], nodes[yv, 1]
             r_Sid, c_Sid = nodes[xv, 2], nodes[yv, 2]
+
             r_pos, c_pos = nodes[xv, 3], nodes[yv, 3] # 没有加上sent的长度
             r_pos2, c_pos2 = nodes[xv, 4], nodes[yv, 4]# 加上sent的长度
             # # MM: mention-mention
@@ -178,45 +174,37 @@ class DocRelationDataset:
             #######################
             adjacency = np.full((r_id.shape[0], r_id.shape[0]), 0, 'i')
             # 5：mention-mention, entity-mention, sentence-sentence, mention-sentence, entity-sentence
-            rgcn_adjacency = np.full((5, r_id.shape[0], r_id.shape[0]), 0.0)
-
-            # mention-mention
-            # todo mentions分开了，所以算same sentences这里是不是有点问题
-            adjacency = np.where(np.logical_or(r_id == 1, r_id == 3) & np.logical_or(c_id == 1, c_id == 3) & (r_Sid == c_Sid), 1, adjacency)  # in same sentence
+            # 3：entity-entity, sentence-sentence, entity-sentence
+            rgcn_adjacency = np.full((3, r_id.shape[0], r_id.shape[0]), 0.0)
+            mask = np.full((r_id.shape[0], r_id.shape[0]), False)
+            for i in range(r_id.shape[0]):
+                for j in range(r_id.shape[0]):
+                    mask[i][j] = bool(set(r_Sid[i][j]).intersection(set(c_Sid[i][j])))
+            # entity-entity
+            adjacency = np.where(np.logical_or(r_id == 0, r_id == 3) & np.logical_or(c_id == 0, c_id == 3) & mask, 1, adjacency)  # in same sentence
             rgcn_adjacency[0] = np.where(
-                    np.logical_or(r_id == 1, r_id == 3) & np.logical_or(c_id == 1, c_id == 3) & (r_Sid == c_Sid), 1,
+                    np.logical_or(r_id == 0, r_id == 3) & np.logical_or(c_id == 0, c_id == 3) & mask, 1,
                     rgcn_adjacency[0])
 
             # entity-mention
-            adjacency = np.where((r_id == 0) & (c_id == 1) & (r_Eid == c_Eid), 1, adjacency)  # belongs to entity
-            adjacency = np.where((r_id == 1) & (c_id == 0) & (r_Eid == c_Eid), 1, adjacency)
-            rgcn_adjacency[1] = np.where((r_id == 0) & (c_id == 1) & (r_Eid == c_Eid), 1, rgcn_adjacency[1])  # belongs to entity
-            rgcn_adjacency[1] = np.where((r_id == 1) & (c_id == 0) & (r_Eid == c_Eid), 1, rgcn_adjacency[1])
+            # adjacency = np.where((r_id == 0) & (c_id == 1) & (r_Eid == c_Eid), 1, adjacency)  # belongs to entity
+            # adjacency = np.where((r_id == 1) & (c_id == 0) & (r_Eid == c_Eid), 1, adjacency)
+            # rgcn_adjacency[1] = np.where((r_id == 0) & (c_id == 1) & (r_Eid == c_Eid), 1, rgcn_adjacency[1])  # belongs to entity
+            # rgcn_adjacency[1] = np.where((r_id == 1) & (c_id == 0) & (r_Eid == c_Eid), 1, rgcn_adjacency[1])
 
             # sentence-sentence (direct + indirect)
+            # todo 去掉indirect
             adjacency = np.where((r_id == 2) & (c_id == 2), 1, adjacency)
-            rgcn_adjacency[2] = np.where((r_id == 2) & (c_id == 2), 1, rgcn_adjacency[2])
-
-            # mention-sentence
-            adjacency = np.where(np.logical_or(r_id == 1, r_id == 3) & (c_id == 2) & (r_Sid == c_Sid), 1, adjacency)  # belongs to sentence
-            adjacency = np.where((r_id == 2) & np.logical_or(c_id == 1, c_id == 3) & (r_Sid == c_Sid), 1, adjacency)
-            rgcn_adjacency[3] = np.where(np.logical_or(r_id == 1, r_id == 3) & (c_id == 2) & (r_Sid == c_Sid), 1, rgcn_adjacency[3])  # belongs to sentence
-            rgcn_adjacency[3] = np.where((r_id == 2) & np.logical_or(c_id == 1, c_id == 3) & (r_Sid == c_Sid), 1, rgcn_adjacency[3])
+            rgcn_adjacency[1] = np.where((r_id == 2) & (c_id == 2), 1, rgcn_adjacency[2])
 
             # entity-sentence
-            for x, y in zip(xv.ravel(), yv.ravel()):
-                if nodes[x, 5] == 0 and nodes[y, 5] == 2:  # this is an entity-sentence edge
-                    z = np.where((r_Eid == nodes[x, 0]) & (r_id == 1) & (c_id == 2) & (c_Sid == nodes[y, 4]))
+            adjacency = np.where(np.logical_or(r_id == 0, r_id == 3) & (c_id == 2) & mask, 1, adjacency)  # belongs to sentence
+            adjacency = np.where((r_id == 2) & np.logical_or(c_id == 0, c_id == 3) & mask, 1, adjacency)
+            rgcn_adjacency[2] = np.where(np.logical_or(r_id == 0, r_id == 3) & (c_id == 2) & mask, 1, rgcn_adjacency[2])  # belongs to sentence
+            rgcn_adjacency[2] = np.where((r_id == 2) & np.logical_or(c_id == 0, c_id == 3) & mask, 1, rgcn_adjacency[2])
 
-                    # at least one M in S
-                    temp_ = np.where((r_id == 1) & (c_id == 2) & (r_Sid == c_Sid), 1, adjacency)
-                    temp_ = np.where((r_id == 2) & (c_id == 1) & (r_Sid == c_Sid), 1, temp_)
-                    adjacency[x, y] = 1 if (temp_[z] == 1).any() else 0
-                    adjacency[y, x] = 1 if (temp_[z] == 1).any() else 0
-                    rgcn_adjacency[4][x, y] = 1 if (temp_[z] == 1).any() else 0
-                    rgcn_adjacency[4][y, x] = 1 if (temp_[z] == 1).any() else 0
 
-            rgcn_adjacency = sparse_mxs_to_torch_sparse_tensor([sp.coo_matrix(rgcn_adjacency[i]) for i in range(5)])
+            rgcn_adjacency = sparse_mxs_to_torch_sparse_tensor([sp.coo_matrix(rgcn_adjacency[i]) for i in range(3)])
 
 
             # dist_dir_h_t = dist_dir_h_t[0: entity_size, 0:entity_size]
@@ -224,7 +212,7 @@ class DocRelationDataset:
                            # 'dist_dir': dist_dir_h_t,
                            'text': doc, 'info': rel_info,
                            'adjacency': adjacency, 'rgcn_adjacency': rgcn_adjacency,
-                           'section': np.array([len(self.loader.entities[pmid].items()), ent.shape[0], len(doc), sum([len(s) for s in doc])]),
+                           'section': np.array([len(self.loader.entities[pmid].items()), len(doc), sum([len(s) for s in doc])]),
                            'word_sec': np.array([len(s) for s in doc]),
                            'words': np.hstack([np.array(s) for s in doc]), 'bert_token': bert_token, 'bert_mask': bert_mask, 'bert_starts': bert_starts}]
         print("miss_word", miss_word)

@@ -1,7 +1,19 @@
 import torch
 from torch.nn.utils.rnn import pad_sequence
-
-
+import numpy as np
+def split_nodes_info_pad(nodes, section, pad=-1):
+    nodes_info=[]
+    start=0
+    max_length = max(section.tolist())
+    for i in section.tolist():
+        tmp=nodes[start:start+i]
+        start+=i
+        if i<max_length:
+            for j in range(i,max_length):
+                tmp.append((pad,[pad]))
+        nodes_info.append(tmp)
+    # nodes = torch.split.pad(nodes, 'constant',constant_values = (pad,pad))
+    return np.array(nodes_info)
 def split_n_pad(nodes, section, pad=0, return_mask=False):
     """
     split tensor and pad
@@ -75,7 +87,6 @@ def pool(h, mask, type='max'):
 
 
 if __name__ == '__main__':
-    import numpy as np
     input = torch.randn((2,10,2))
     print(input)
     section = torch.from_numpy(np.asarray([[2,2,6],[2,3,2]]))

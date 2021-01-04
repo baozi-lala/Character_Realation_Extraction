@@ -3,14 +3,14 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from torch import nn
 from torch.nn.utils.rnn import pad_sequence
-
+import numpy as np
 from models.basemodel import BaseModel
 from nnet.attention import SelfAttention
 from transformers import *
 
 from nnet.modules import Classifier, EncoderLSTM, EmbedLayer, LockedDropout,EncoderRNN
 from nnet.rgcn import RGCN_Layer
-from utils.tensor_utils import rm_pad, split_n_pad
+from utils.tensor_utils import rm_pad, split_n_pad,split_nodes_info_pad
 import os
 from nnet.attention import MultiHeadAttention
 from nnet.bigru import BiGRU
@@ -89,7 +89,8 @@ class GLRE(BaseModel):
         if params['context_att']:
             self.self_att = SelfAttention(input_dim, 1.0)
             input_dim = input_dim * 2
-
+        if self.more_gru:
+            input_dim=input_dim+params['output_gru']
         self.mlp_layer = params['mlp_layers']
         if self.mlp_layer>-1:
             hidden_dim = params['mlp_dim']
@@ -126,9 +127,9 @@ class GLRE(BaseModel):
         Graph Layer -> Construct a document-level graph
         The graph edges hold representations for the connections between the nodes.
         Args:
-            nodes: entities+mentions+sentences
+            nodes: entities+sentences
             info:        (Tensor, 5 columns) entity_id, entity_nameId, pos_id, sentence_id,type
-            section:     (Tensor <B, 3>) #entities/#mentions/#sentences per batch
+            section:     (Tensor <B, 3>) #entities/#entities/#sentences per batch
             # positions:   distances between nodes (only M-M and S-S)
 
         Returns: (Tensor) graph, (Tensor) tensor_mapping, (Tensors) indices, (Tensor) node information
@@ -143,10 +144,10 @@ class GLRE(BaseModel):
 
         # re-order nodes per document (batch)
         nodes = self.rearrange_nodes(nodes, section)
-        nodes = split_n_pad(nodes, section.sum(dim=1))  # torch.Size([4, 76, 210]) batch_size * node_size * node_emb
+        nodes = split_n_pad(nodes, section.sum(dim=1))  # torch.Size([8, 76, 210]) batch_size * node_size * node_emb
 
         nodes_info = self.rearrange_nodes(nodes_info, section)
-        nodes_info = split_n_pad(nodes_info, section.sum(dim=1), pad=-1)  # torch.Size([4, 76, 3]) batch_size * node_size * node_type_size
+        nodes_info = split_nodes_info_pad(nodes_info, section.sum(dim=1), pad=-1)  # torch.Size([4, 76, 3]) batch_size * node_size * node_type_size
 
         return nodes, nodes_info
 
@@ -156,41 +157,64 @@ class GLRE(BaseModel):
 
         # MENTION & ENTITY NODES
         encoded_seq_token = rm_pad(encoded_seq, word_sec)
-        # todo entities即为mentions，不需要进行平均
-        mentions = self.merge_tokens(info, encoded_seq_token)
-        entities = self.merge_mentions(info, mentions)  # entity nodes
-        return (entities, mentions, sentences)
+        entities = self.merge_tokens(info, encoded_seq_token)
+        # entities = self.merge_mentions(info, mentions)  # entity nodes
+        return (entities, sentences)
 
     def node_info(self, section, info):
         """
         info:        (Tensor, 5 columns) entity_id, entity_nameId, pos_id, sentence_id,type
-        section:    Tensor  entities/#mentions/#sentences per batch
+        section:    Tensor  entities/#entities/#sentences per batch
         Col 0: node type  | Col 1: sentence id
         """
-        typ = torch.repeat_interleave(torch.arange(3).to(self.device), section.sum(dim=0))  # node types (0,1,2)
-        rows_ = torch.bincount(info[:, 0]).cumsum(dim=0)
-        rows_ = torch.cat([torch.tensor([0]).to(self.device), rows_[:-1]]).to(self.device)  #
+        res=[]
+        for i in range(section.sum(dim=0)[0]):
+            res.append((0,info[i][3]))
+            # sent_id.append(torch.tensor(info[i][3]))
+        for i in range(section.sum(dim=0)[1]):
+            res.append((2,[i]))
+            # sent_id.append(torch.tensor([i]))
+        # res = torch.Tensor(res).to(self.device)  # node types (0,2)
+        return res
+        # sent_id= torch.cat(sent_id).to(self.device)  # node types (0,2)
+        # rows_ = torch.bincount(torch.Tensor(info[:, 0])).cumsum(dim=0)
+        # rows_ = torch.cat([torch.tensor([0]).to(self.device), rows_[:-1]]).to(self.device)  #
         # 去掉实体类型的信息
         # stypes = torch.neg(torch.ones(section[:, 2].sum())).to(self.device).long()  # semantic type sentences = -1
         # all_types = torch.cat((info[:, 1][rows_], info[:, 1], stypes), dim=0)
-        sents_ = torch.arange(section.sum(dim=0)[2]).to(self.device)
-        sent_id = torch.cat((info[:, 4][rows_], info[:, 4], sents_), dim=0)  # sent_id
-        return torch.cat((typ.unsqueeze(-1),  sent_id.unsqueeze(-1)), dim=1)
+        # sents_ = torch.arange(section.sum(dim=0)[2]).to(self.device)
+        # sent_id = torch.cat((torch.Tensor(info[:, 3])[rows_], torch.Tensor(info[:, 3]), sents_), dim=0)  # sent_id
+        # return torch.cat((type.unsqueeze(-1),  sent_id), dim=1)
 
     @staticmethod
     def rearrange_nodes(nodes, section):
         """
-        Re-arrange nodes so that they are in 'Entity - Mention - Sentence' order for each document (batch)
+        Re-arrange nodes so that they are in 'Entity - Sentence' order for each document (batch)
         """
-        tmp1 = section.t().contiguous().view(-1).long().to(nodes.device)
-        tmp3 = torch.arange(section.numel()).view(section.size(1),
-                                                  section.size(0)).t().contiguous().view(-1).long().to(nodes.device)
-        tmp2 = torch.arange(section.sum()).to(nodes.device).split(tmp1.tolist())
-        tmp2 = pad_sequence(tmp2, batch_first=True, padding_value=-1)[tmp3].view(-1)
-        tmp2 = tmp2[(tmp2 != -1).nonzero().squeeze()]  # remove -1 (padded)
+        # todo 没懂需要回来看一下
+        if isinstance(nodes,list):
+            tmp1 = section.t().contiguous().view(-1).long()
+            tmp3 = torch.arange(section.numel()).view(section.size(1),
+                                                      section.size(0)).t().contiguous().view(-1).long()
+            tmp2 = torch.arange(section.sum()).split(tmp1.tolist())
+            tmp2 = pad_sequence(tmp2, batch_first=True, padding_value=-1)[tmp3].view(-1)
+            tmp2 = tmp2[(tmp2 != -1).nonzero().squeeze()]  # remove -1 (padded)
+            # 前面全在计算索引
+            node_info_new=[]
+            for i in tmp2:
+                node_info_new.append(nodes[i])
+            return node_info_new
+        else:
+            tmp1 = section.t().contiguous().view(-1).long().to(nodes.device)
+            # tmp3是和天tmp1对应的索引
+            tmp3 = torch.arange(section.numel()).view(section.size(1),
+                                                      section.size(0)).t().contiguous().view(-1).long().to(nodes.device)
+            tmp2 = torch.arange(section.sum()).to(nodes.device).split(tmp1.tolist())
+            tmp2 = pad_sequence(tmp2, batch_first=True, padding_value=-1)[tmp3].view(-1)
+            tmp2 = tmp2[(tmp2 != -1).nonzero().squeeze()]  # remove -1 (padded)
 
-        nodes = torch.index_select(nodes, 0, tmp2)
-        return nodes
+            nodes = torch.index_select(nodes, 0, tmp2)
+            return nodes
 
     def forward(self, batch):
 
@@ -198,8 +222,8 @@ class GLRE(BaseModel):
 
         if self.pretrain_l_m == 'none':
             # pad+encode
-            encoded_seq = self.encoding_layer(input_vec, batch['section'][:, 3])
-            encoded_seq = rm_pad(encoded_seq, batch['section'][:, 3])
+            encoded_seq = self.encoding_layer(input_vec, batch['section'][:, 2])
+            encoded_seq = rm_pad(encoded_seq, batch['section'][:, 2])
             encoded_seq = self.pretrain_l_m_linear_re(encoded_seq)
         else:
             context_output = self.pretrain_lm(batch['bert_token'], attention_mask=batch['bert_mask'])[0]
@@ -207,7 +231,7 @@ class GLRE(BaseModel):
             context_output = [layer[starts.nonzero().squeeze(1)] for layer, starts in
                               zip(context_output, batch['bert_starts'])]
             context_output_pad = []
-            for output, word_len in zip(context_output, batch['section'][:, 3]):
+            for output, word_len in zip(context_output, batch['section'][:, 2]):
                 if output.size(0) < word_len:
                     padding = Variable(output.data.new(1, 1).zero_())
                     output = torch.cat([output, padding.expand(word_len - output.size(0), output.size(1))], dim=0)
@@ -216,14 +240,14 @@ class GLRE(BaseModel):
             context_output = torch.cat(context_output_pad, dim=0)
 
             if self.more_lstm:
-                context_output = self.encoding_layer(context_output, batch['section'][:, 3])
-                context_output = rm_pad(context_output, batch['section'][:, 3])
+                context_output = self.encoding_layer(context_output, batch['section'][:, 2])
+                context_output = rm_pad(context_output, batch['section'][:, 2])
             encoded_seq = self.pretrain_l_m_linear_re(context_output)
         # 按句子分
         encoded_seq = split_n_pad(encoded_seq, batch['word_sec'])
         # todo 可以在这里加第二部分
         if self.more_gru:
-            output_gru = self.gru_layer(encoded_seq, batch['entities'],batch['section'][:, 0],batch['section'][:, 2], batch['rgcn_adjacency'])
+            output_gru = self.gru_layer(encoded_seq, batch['entities'],batch['section'][:, 0])
 
         # Graph
         if self.pretrain_l_m == 'none':
@@ -233,9 +257,9 @@ class GLRE(BaseModel):
         else:
             nodes = self.node_layer(encoded_seq, batch['entities'], batch['word_sec'])
 
-        init_nodes = nodes
-        nodes, nodes_info = self.graph_layer(nodes, batch['entities'], batch['section'][:, 0:3])
-        nodes, _ = self.rgcn_layer(nodes, batch['rgcn_adjacency'], batch['section'][:, 0:3])
+        # init_nodes = nodes
+        nodes, nodes_info = self.graph_layer(nodes, batch['entities'], batch['section'][:, 0:2])
+        nodes, _ = self.rgcn_layer(nodes, batch['rgcn_adjacency'], batch['section'][:, 0:2])
         entity_size = batch['section'][:, 0].max()
         r_idx, c_idx = torch.meshgrid(torch.arange(entity_size).to(self.device),
                                       torch.arange(entity_size).to(self.device))
@@ -252,13 +276,7 @@ class GLRE(BaseModel):
         #         relation_rep_h = torch.cat((relation_rep_h, entitys_pair_rep_h), dim=-1)
         #         relation_rep_t = torch.cat((relation_rep_t, entitys_pair_rep_t), dim=-1)
 
-        # if self.finaldist:
-        #     dis_h_2_t = batch['distances_dir'] + 10
-        #     dis_t_2_h = -batch['distances_dir'] + 10
-        #     dist_dir_h_t_vec = self.dist_embed_dir(dis_h_2_t)
-        #     dist_dir_t_h_vec = self.dist_embed_dir(dis_t_2_h)
-        #     relation_rep_h = torch.cat((relation_rep_h, dist_dir_h_t_vec), dim=-1)
-        #     relation_rep_t = torch.cat((relation_rep_t, dist_dir_t_h_vec), dim=-1)
+
         graph_select = torch.cat((relation_rep_h, relation_rep_t), dim=-1)
 
         if self.context_att:
@@ -267,13 +285,13 @@ class GLRE(BaseModel):
             graph_select = self.self_att(graph_select, graph_select, relation_mask)
 
         # Classification
-        r_idx, c_idx = torch.meshgrid(torch.arange(nodes_info.size(1)).to(self.device),
-                                      torch.arange(nodes_info.size(1)).to(self.device))
+        r_idx, c_idx = torch.meshgrid(torch.arange(nodes.size(1)),
+                                      torch.arange(nodes.size(1)))
         # graph_select = torch.cat((graph_select, output_gru), dim=-1)
         # 待预测的实体对
-        select, _ = self.select_pairs(nodes_info, (r_idx, c_idx), self.dataset)
+        select, _ = self.select_pairs(nodes_info, (r_idx, c_idx),self.device)
+        graph_select = torch.cat((graph_select, output_gru), dim=3)
         graph_select = graph_select[select]
-        graph_select = torch.cat((graph_select, output_gru), dim=-1)
         if self.mlp_layer>-1:
             graph_select = self.out_mlp(graph_select)
         graph = self.classifier(graph_select)

@@ -63,46 +63,73 @@ class BiGRU(nn.Module):
         self.hidden_state = torch.zeros(2, self.hidden_state)
         if torch.cuda.is_available():
             self.hidden_state = self.hidden_state.cuda()
-    def forward(self, input, entities,entities_sec,sen_sec,rgcn_adjacency):# input : [batch_size, len_seq, embedding_dim]
-        bag=self.get_sentences_in_bag(input,entities)
-        bag_input_sen = nn.utils.rnn.pad_sequence(bag, batch_first=True, padding_value=0)
-        # gru_input_sen = bag_input_sen.reshape((-1, bag_input_sen.size(2), bag_input_sen.size(3)))
-        gru_input_sen= bag_input_sen.permute(1, 0, 2, 3)
-        word_att_out=[]
-        # todo 按照batch还是一个一个句子
-        for sen in gru_input_sen:
-            # 所有batch中的第i个word
-            # f_output, h_output = self.gru(output.float(), hidden_state)  # feature output and hidden state output
-            # hidden_state = Variable(torch.zeros(2 * self.gru_layers, sen.size(0), self.gru_dim)).cuda()
-            gru_output,_=self.gru_layer(sen.permute(1, 0, 2))
-            # state_sent = self.sent_attn.init_hidden().cuda()
-            word_attn_vectors, word_attn_norm=self.word_attn(gru_output)
-            word_att_out.append(word_attn_vectors)
-        word_att_out=torch.cat(word_att_out, dim=0)
-        # word_att_out = word_att_out.reshape((bag_input_sen.size(0), bag_input_sen.size(1), -1))
-        sent_attn_vectors, sent_attn_norm = self.sent_attn(word_att_out)
-        bags_out= self.fc(sent_attn_vectors)
-        # word_att_out.append(word_attn_vectors)
-        # word_att_out = torch.cat(word_att_out, dim=0)
-        # bags_out = torch.stack(bags_out)
-        return bags_out
-    def get_sentences_in_bag(self,input,entities):
-        entities_sentences = []
-        for i, entity in enumerate(entities):
-            if entity[0].item() < len(entities_sentences):
-                entities_sentences[int(entity[0].item())].append(entity[3].item())
+    def forward(self, input, entities,entities_num):# input : [batch_size, len_seq, embedding_dim]
+        bag,max_length,pairs=self.get_sentences_in_bag(input,entities,entities_num)
+        batch_size = entities_num.size(0)
+        bags_res = torch.zeros((batch_size, max_length, max_length, self.output_size)).cuda()
+        # bag = bag.reshape((-1, bag.shape[2], bag.shape[3], bag.shape[4]))
+        if bag.size!=0:
+            bag_input_sen = nn.utils.rnn.pad_sequence(bag, batch_first=True, padding_value=0)
+            gru_input_sen= bag_input_sen.permute(1, 0, 2, 3)
+            word_att_out=[]
+            # todo 按照batch还是一个一个句子
+            for sen in gru_input_sen:
+                # 所有batch中的第i个word
+                # f_output, h_output = self.gru(output.float(), hidden_state)  # feature output and hidden state output
+                # hidden_state = Variable(torch.zeros(2 * self.gru_layers, sen.size(0), self.gru_dim)).cuda()
+                gru_output,_=self.gru_layer(sen.permute(1, 0, 2))
+                # state_sent = self.sent_attn.init_hidden().cuda()
+                word_attn_vectors, word_attn_norm=self.word_attn(gru_output)
+                word_att_out.append(word_attn_vectors)
+            word_att_out=torch.cat(word_att_out, dim=0)
+            # word_att_out = word_att_out.reshape((bag_input_sen.size(0), bag_input_sen.size(1), -1))
+            if word_att_out.size(0)>1:
+                sent_attn_vectors, sent_attn_norm = self.sent_attn(word_att_out)
             else:
-                entities_sentences.append([entity[3].item(), ])
-        length = len(entities_sentences)
-        # bag = [[[]] * length] * length
-        bags_out = []
-        for a in range(length):
-            for b in range(a + 1, length):
-                indexs = list(set(entities_sentences[a]) & set(entities_sentences[b]))
-                bags_out.append(input[indexs])
-                # 从word_attn_vectors中选出索引为bag[a][b]的句子
+                sent_attn_vectors=word_att_out.squeeze()
+            bag_out= self.fc(sent_attn_vectors)
+                # else:
+                #     bag_out = torch.zeros((max_length*max_length,256))
+            cnt=0
+            for i in pairs:
+                if cnt<bag_out.size(0):
+                    bags_res[i[0],i[1],i[2]]=bag_out[cnt]
+                    cnt+=1
+
+        return bags_res
+    def get_sentences_in_bag(self,input,entities,section,pad=-1):
+        entities_sentences=[]
+        start = 0
+        max_length = max(section.tolist())
+        for i in section.tolist():
+            tmp = entities[start:start + i][:,3].tolist()
+            start += i
+            if i < max_length:
+                for j in range(i, max_length):
+                    tmp.append([pad])
+            entities_sentences.append(tmp)
+        # r_idx, c_idx = torch.meshgrid(torch.arange(length).to(self.device),
+        #                               torch.arange(length).to(self.device))
+        # a_ = torch.from_numpy(entities_sentences[:, r_idx].astype(float))
+        # b_ = torch.from_numpy(entities_sentences[:, c_idx].astype(float))
+        # condition1 = torch.ne(a_, -1) & torch.ne(b_, -1) & torch.ne(r_idx, c_idx)
+        # sel = torch.where(condition1, torch.ones_like(sel), sel)
+        bags_out=[]
+        bags_out_batch = []
+        pairs=[]
+        for i,batch_sentences in enumerate(entities_sentences):
+            for a in range(max_length):
+                for b in range(max_length):
+                    if a==b:
+                        indexs=[]
+                    else:
+                        indexs = list(set(batch_sentences[a]) & set(batch_sentences[b]))
+                    if indexs:
+                        bags_out_batch.append(input[indexs])
+                        pairs.append((i,a,b))
+            # bags_out.append(bags_out_batch)
                 # todo 维度要一样
-        return bags_out
+        return np.array(bags_out_batch),max_length,pairs
 
 
 

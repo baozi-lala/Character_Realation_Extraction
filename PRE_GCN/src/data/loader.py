@@ -34,7 +34,7 @@ class ConfigLoader:
         parser.add_argument('--test_data', type=str,default='../data/DocPRE/processed/dev.json')
         parser.add_argument('--save_pred', type=str,default='dev')
 
-        parser.add_argument('--batch', type=int, default=8, help='batch size')
+        parser.add_argument('--batch', type=int, default=4, help='batch size')
         # parser.add_argument()
 
         parser.add_argument('--CUDA_VISIBLE_DEVICES', type=str, default='0')

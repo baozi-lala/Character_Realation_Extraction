@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-
+import numpy as np
 from nnet.modules import EmbedLayer
 from utils.tensor_utils import pool
 
@@ -80,8 +80,13 @@ class BaseModel(nn.Module):
             # if type == "max":
             #     mention = torch.max(enc_seq[info[i, 2]: info[i, 3], :], dim=-2)[0]
             # else:  # mean
-            mention = enc_seq[info[i, 2], :]
-            mentions.append(mention)
+            mention=[]
+            for pos in info[i, 2]:
+                mention.append(enc_seq[pos, :])
+            mention=torch.stack(mention)
+            entity=torch.mean(mention, dim=0)
+            # entity = pool(mentions, index_f[i, :].unsqueeze(-1), type=type)
+            mentions.append(entity)
         mentions = torch.stack(mentions)
         return mentions
 
@@ -102,15 +107,16 @@ class BaseModel(nn.Module):
         return entities
 
     @staticmethod
-    def select_pairs(nodes_info, idx, dataset='PRE_data'):
+    def select_pairs(nodes_info, idx, device):
         """
         Select (entity node) pairs for classification based on input parameter restrictions (i.e. their entity type).
         """
-        sel = torch.zeros(nodes_info.size(0), nodes_info.size(1), nodes_info.size(1)).to(nodes_info.device)
-        a_ = nodes_info[..., 0][:, idx[0]]
-        b_ = nodes_info[..., 0][:, idx[1]]
+        sel = torch.zeros(nodes_info.shape[0], nodes_info.shape[1], nodes_info.shape[1]).to(device)
+        a_ = torch.from_numpy(nodes_info[..., 0][:, idx[0]].astype(float))
+        b_ = torch.from_numpy(nodes_info[..., 0][:, idx[1]].astype(float))
         condition1 = torch.eq(a_, 0) & torch.eq(b_, 0) & torch.ne(idx[0], idx[1])
-        sel = torch.where(condition1, torch.ones_like(sel), sel)
+        sel = torch.where(condition1.to(device), torch.ones_like(sel), sel)
+        # 返回一个三元组，表示第i,j,k个位置的数据
         return sel.nonzero().unbind(dim=1), sel.nonzero()[:, 0]
 
     def count_predictions(self, y, t):

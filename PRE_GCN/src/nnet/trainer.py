@@ -206,6 +206,7 @@ class Trainer:
 
             # with autograd.detect_anomaly():
             self.optimizer.zero_grad()
+            print(batch_idx)
             loss, stats, predictions, select, pred_pairs, multi_truths, mask, relation_label = self.model(batch)
             pred_pairs = torch.sigmoid(pred_pairs)
             # self.optimizer.zero_grad()
@@ -533,11 +534,11 @@ class Trainer:
 
 
     def convert_batch(self, batch, istrain=False, save=False):
-        new_batch = {'entities': [], 'bert_token': [], 'bert_mask': [], 'bert_starts': [], 'pos_idx': []}
+        new_batch = {'entities': [],'entities_sep':[], 'bert_token': [], 'bert_mask': [], 'bert_starts': [], 'pos_idx': []}
         ent_count, sent_count, word_count = 0, 0, 0
         full_text = []
 
-
+        ent_count_sep=0
         for i, b in enumerate(batch):
             current_text = list(itertools.chain.from_iterable(b['text']))
             full_text += current_text
@@ -546,22 +547,28 @@ class Trainer:
             new_batch['bert_starts'] += [b['bert_starts']]
 
             temp = []
+            temp_sep=[]
             for e in b['ents']:
-                temp += [[e[0] + ent_count, e[1], e[4] + word_count, e[2] + sent_count, e[5]]]  # id  name_id pos sent_id
+                temp += [[e[0] + ent_count, e[1], [i + word_count for i in e[4]], [i + sent_count for i in e[2]], e[5]]]  # id  name_id pos sent_id, type
+                for i,j in zip(e[4],e[2]):
+                    temp_sep += [[e[0] + ent_count_sep, e[1], i + word_count, j + sent_count,e[5]]]  # id  name_id pos sent_id, type
             # id, name_id,pos,sent_id,type
             new_batch['entities'] += [np.array(temp)]
+            new_batch['entities_sep'] += [np.array(temp_sep)]
             word_count += sum([len(s) for s in b['text']])
             ent_count = max([t[0] for t in temp]) + 1
+            ent_count_sep=max([t[0] for t in temp_sep]) + 1
             sent_count += len(b['text'])
         # print(ent_count)
         # print(word_count)
-        new_batch['entities'] = np.concatenate(new_batch['entities'], axis=0)  # 126, 5
-        new_batch['entities'] = torch.as_tensor(new_batch['entities']).long().to(self.device)
+        new_batch['entities'] = np.concatenate(new_batch['entities'], axis=0)  # 50, 5
+        new_batch['entities_sep'] = np.concatenate(new_batch['entities_sep'], axis=0)
+        new_batch['entities_sep'] = torch.as_tensor(new_batch['entities_sep']).long().to(self.device)
         new_batch['bert_token'] = torch.as_tensor(np.concatenate(new_batch['bert_token'])).long().to(self.device)
         new_batch['bert_mask'] = torch.as_tensor(np.concatenate(new_batch['bert_mask'])).long().to(self.device)
         new_batch['bert_starts'] = torch.as_tensor(np.concatenate(new_batch['bert_starts'])).long().to(self.device)
 
-        batch_ = [{k: v for k, v in b.items() if (k != 'info' and k != 'text' and k != 'rgcn_adjacency')} for b in batch]
+        batch_ = [{k: v for k, v in b.items() if (k!='ents' and k != 'info' and k != 'text' and k != 'rgcn_adjacency')} for b in batch]
         converted_batch = concat_examples(batch_, device=self.device, padding=-1)
 
         converted_batch['adjacency'][converted_batch['adjacency'] == -1] = 0
