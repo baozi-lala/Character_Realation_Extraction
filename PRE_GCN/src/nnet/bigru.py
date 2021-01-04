@@ -21,11 +21,12 @@ class BiGRU(nn.Module):
         self.batch_size = params['batch']
         self.sen_len = params['sen_len']  # 句子的长度，如果不够就做填充，如果超过就做截取
         self.num_steps=self.sen_len # LSTM的展开步数（num_step）为输入语句的长度，而每一个LSTM单元的输入则是语句中对应单词或词组的词向量。
-        self.pos_limit = params['pos_limit']  # 设置位置的范围
+        self.add_pos=params['add_pos']
+        self.pos_dis = params['pos_limit']  # 设置位置的范围
         self.pos_dim = params['pos_dim']  # 设置位置嵌入的维度
 
 
-        self.pos_num = 2 * self.pos_limit + 3# 设置位置的总个数
+        self.pos_num = 2 * self.pos_dis + 3# 设置位置的总个数
         # self.max_sent_length = params['max_sent_length']
         # self.max_word_length = params['max_word_length']
 
@@ -33,15 +34,18 @@ class BiGRU(nn.Module):
         self.output_size = params['output_gru']
         self.gru_dim = params['gru_dim']  # GＲU 网络单元数，:num_units，ht的维数，隐藏层的维度
         self.gru_layers = params['gru_layers']
-        # self.gru_dropout = nn.Dropout(params['gru_dropout'])
-        # self.gcn_drop = nn.Dropout(params['gcn_out_drop'])
-        # self.gru_layer = EncoderRNN(input_size=input_size,
-        #                        num_units=self.gru_dim,
-        #                        nlayers=self.gru_layers,
-        #                        bidir=True,
-        #                        dropout=params['gru_dropout'])
+        if self.add_pos:
+            self.input_size = self.input_size + 2 * self.pos_dim
+        self.pos1_embedding = nn.Embedding(
+            num_embeddings=2 * self.pos_dis + 3,
+            embedding_dim=self.pos_dim
+        )
+        self.pos2_embedding = nn.Embedding(
+            num_embeddings=2 * self.pos_dis + 3,
+            embedding_dim=self.pos_dim
+        )
 
-        self.gru_layer = nn.GRU(input_size=input_size, hidden_size=self.gru_dim,
+        self.gru_layer = nn.GRU(input_size=self.input_size, hidden_size=self.gru_dim,
                                 num_layers=self.gru_layers, dropout=params['gru_dropout'],
                                 bidirectional=True)
 
@@ -63,8 +67,16 @@ class BiGRU(nn.Module):
         self.hidden_state = torch.zeros(2, self.hidden_state)
         if torch.cuda.is_available():
             self.hidden_state = self.hidden_state.cuda()
+
+    def encoder_layer(self, token, pos1, pos2):
+        word_emb = token  # B*L*word_dim
+        pos1_emb = self.pos1_embedding(pos1)  # B*L*pos_dim
+        pos2_emb = self.pos2_embedding(pos2)  # B*L*pos_dim
+        emb = torch.cat(tensors=[word_emb, pos1_emb, pos2_emb], dim=-1)
+        return emb  # B*L*D, D=word_dim+2*pos_dim
     def forward(self, input, entities,entities_num):# input : [batch_size, len_seq, embedding_dim]
         bag,max_length,pairs=self.get_sentences_in_bag(input,entities,entities_num)
+        # batch size有可能是剩余的
         batch_size = entities_num.size(0)
         bags_res = torch.zeros((batch_size, max_length, max_length, self.output_size)).cuda()
         # bag = bag.reshape((-1, bag.shape[2], bag.shape[3], bag.shape[4]))
@@ -99,38 +111,76 @@ class BiGRU(nn.Module):
         return bags_res
     def get_sentences_in_bag(self,input,entities,section,pad=-1):
         entities_sentences=[]
+        entities_id = []
         start = 0
         max_length = max(section.tolist())
         for i in section.tolist():
             tmp = entities[start:start + i][:,3].tolist()
+            tmp_id = entities[start:start + i].tolist()
             start += i
             if i < max_length:
                 for j in range(i, max_length):
                     tmp.append([pad])
+                    tmp_id.append([pad])
             entities_sentences.append(tmp)
-        # r_idx, c_idx = torch.meshgrid(torch.arange(length).to(self.device),
-        #                               torch.arange(length).to(self.device))
-        # a_ = torch.from_numpy(entities_sentences[:, r_idx].astype(float))
-        # b_ = torch.from_numpy(entities_sentences[:, c_idx].astype(float))
-        # condition1 = torch.ne(a_, -1) & torch.ne(b_, -1) & torch.ne(r_idx, c_idx)
-        # sel = torch.where(condition1, torch.ones_like(sel), sel)
+            entities_id.append(tmp_id)
         bags_out=[]
         bags_out_batch = []
         pairs=[]
+        sentence_length=input.size(1)
         for i,batch_sentences in enumerate(entities_sentences):
             for a in range(max_length):
                 for b in range(max_length):
-                    if a==b:
+                    if a==b or batch_sentences[a][0]==-1 or batch_sentences[b][0]==-1:
                         indexs=[]
                     else:
                         indexs = list(set(batch_sentences[a]) & set(batch_sentences[b]))
                     if indexs:
-                        bags_out_batch.append(input[indexs])
+                        # 加入位置向量
+                        if self.add_pos:
+                            pos1_all = []
+                            pos2_all = []
+                            for index in indexs:
+                                # 匹配第一个出现的位置
+                                pos1=[]
+                                pos2=[]
+                                p1= entities_id[i][a][5][entities_id[i][a][3].index(index)]
+                                p2=entities_id[i][b][5][entities_id[i][b][3].index(index)]
+                                for p in range(sentence_length):
+                                    pos1.append(self.__get_pos_index(p-p1))
+                                    pos2.append(self.__get_pos_index(p - p2))
+                                pos1_all.append(np.array(pos1))
+                                pos2_all.append(np.array(pos2))
+                            pos1_all=torch.from_numpy(np.array(pos1_all)).cuda()
+                            pos2_all = torch.from_numpy(np.array(pos2_all)).cuda()
+                            sentences_encode=self.encoder_layer(input[indexs],pos1_all,pos2_all)
+                        else:
+                            sentences_encode =input[indexs]
+                        bags_out_batch.append(sentences_encode)
                         pairs.append((i,a,b))
             # bags_out.append(bags_out_batch)
-                # todo 维度要一样
         return np.array(bags_out_batch),max_length,pairs
+    def __get_pos_index(self, x):
 
+        """
+        功能：返会句子中单词的位置，控制在[0,2*pos_limit+2]范围内。（使其不为负）
+        :param x: 单词相对于实体的位置
+        :return: 经过转化后的位置。
+        """
+        # exc("pos_index")
+        if x < -self.pos_dis:
+            return 0
+        if x >= -self.pos_dis and x <= self.pos_dis:
+            return x + self.pos_dis + 1
+        if x > self.pos_dis:
+            return 2 * self.pos_dis + 2
+    def __get_relative_pos(self, x, entity_pos):
+        if x < entity_pos[0]:
+            return self.__get_pos_index(x-entity_pos[0])
+        elif x > entity_pos[1]:
+            return self.__get_pos_index(x-entity_pos[1])
+        else:
+            return self.__get_pos_index(0)
 
 
 

@@ -468,7 +468,7 @@ class AttentionSentRNN(nn.Module):
         # self.n_classes = n_classes
         # self.word_gru_hidden = word_gru_hidden
         self.bidirectional = bidirectional
-        # todo 要不要再加gru 不用因为句子没有连续性
+
         # self.sent_gru = nn.GRU(2 * word_gru_hidden, sent_gru_hidden, bidirectional=True)
         self.weight_W_sent = nn.Parameter(torch.Tensor(sent_input, sent_input))
         self.bias_sent = nn.Parameter(torch.Tensor(1,sent_input))

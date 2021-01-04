@@ -206,7 +206,6 @@ class Trainer:
 
             # with autograd.detect_anomaly():
             self.optimizer.zero_grad()
-            print(batch_idx)
             loss, stats, predictions, select, pred_pairs, multi_truths, mask, relation_label = self.model(batch)
             pred_pairs = torch.sigmoid(pred_pairs)
             # self.optimizer.zero_grad()
@@ -549,7 +548,7 @@ class Trainer:
             temp = []
             temp_sep=[]
             for e in b['ents']:
-                temp += [[e[0] + ent_count, e[1], [i + word_count for i in e[4]], [i + sent_count for i in e[2]], e[5]]]  # id  name_id pos sent_id, type
+                temp += [[e[0] + ent_count, e[1], [i + word_count for i in e[4]], [i + sent_count for i in e[2]], e[5],[i for i in e[3]]]]  # id  name_id pos sent_id, type
                 for i,j in zip(e[4],e[2]):
                     temp_sep += [[e[0] + ent_count_sep, e[1], i + word_count, j + sent_count,e[5]]]  # id  name_id pos sent_id, type
             # id, name_id,pos,sent_id,type

@@ -89,7 +89,7 @@ def read(input_file, documents, entities, relations,word2index):
             # sen_len = len(text)
             # word_len = sum([len(t) for t in text])
             # if "DocPRE" in input_file:
-            #     # todo 没看懂
+            #
             #     prs = chunks(line[2:], 18, sen_len, word_len)
 
             if pmid not in documents:

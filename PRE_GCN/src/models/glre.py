@@ -56,7 +56,7 @@ class GLRE(BaseModel):
         #     self.type_embed = EmbedLayer(num_embeddings=3,
         #                                  embedding_dim=params['type_dim'],
         #                                  dropout=0.0)
-        # todo 这里加第二部分模型结构
+        # 第二部分模型结构
         if self.more_gru:
             gru_input_dim = params['lstm_dim']
             self.gru_layer = BiGRU(params,gru_input_dim)
@@ -245,7 +245,7 @@ class GLRE(BaseModel):
             encoded_seq = self.pretrain_l_m_linear_re(context_output)
         # 按句子分
         encoded_seq = split_n_pad(encoded_seq, batch['word_sec'])
-        # todo 可以在这里加第二部分
+        # 第二部分
         if self.more_gru:
             output_gru = self.gru_layer(encoded_seq, batch['entities'],batch['section'][:, 0])
 
