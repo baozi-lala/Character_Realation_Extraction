@@ -13,7 +13,7 @@ def split_nodes_info_pad(nodes, section, pad=-1):
                 tmp.append((pad,[pad]))
         nodes_info.append(tmp)
     # nodes = torch.split.pad(nodes, 'constant',constant_values = (pad,pad))
-    return np.array(nodes_info)
+    return np.array(nodes_info,dtype=object)
 def split_n_pad(nodes, section, pad=0, return_mask=False):
     """
     split tensor and pad

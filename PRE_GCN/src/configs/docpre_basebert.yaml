@@ -28,7 +28,7 @@ gcn_out_drop: 0.2
 
 # network
 batch: 1
-epoch: 10
+epoch: 200
 drop_i: 0.5 # 0.5
 drop_m: 0.0
 drop_o: 0.3 # 0.3
@@ -63,24 +63,25 @@ gru_dropout: 0.5  # 失活概率：0.5
 pretrained_model: 'Bert'
 
 # data based
-train_data: ../data/DocPRE/processed/train.json
-test_data: ../data/DocPRE/processed/dev.json
+train_data: ../data/DocPRE/processed/train1_v2.json
+test_data: ../data/DocPRE/processed/dev1_v2.json
 embeds: ../data/DocPRE/word_embed.txt
 folder: ../results/docpre-dev
 save_pred: dev
 
 # options (chosen from parse input otherwise false)
 lowercase: false
-plot: false
+plot: true
 show_class: false
 early_stop: true
 save_model: true
 freeze_words: true
+
 more_gru: true
 # extra
 seed: 0
 shuffle_data: true
-label2ignore: NA
+label2ignore: unknown
 primary_metric: micro_f
 #direction: l2r+r2l
-gpu: 0
+gpu: 1

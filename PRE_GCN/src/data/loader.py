@@ -31,14 +31,14 @@ class ConfigLoader:
 
         parser.add_argument('--config_file', type=str,default='./configs/docpre_basebert.yaml')
         parser.add_argument('--output_path', type=str, default='./results/docpre-dev/docred_basebert_full/')
-        parser.add_argument('--test_data', type=str,default='../data/DocPRE/processed/dev.json')
+        parser.add_argument('--test_data', type=str,default='../data/DocPRE/processed/dev1.json')
         parser.add_argument('--save_pred', type=str,default='dev')
 
         parser.add_argument('--batch', type=int, default=8, help='batch size')
         # parser.add_argument()
 
-        parser.add_argument('--CUDA_VISIBLE_DEVICES', type=str, default='0')
-        return parser.parse_args()
+        parser.add_argument('--CUDA_VISIBLE_DEVICES', type=str, default='1')
+        return parser.parse_args(args=[])
 
     def load_config(self):
         inp = self.load_cmd()

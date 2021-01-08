@@ -24,7 +24,7 @@ class BiGRU(nn.Module):
         self.add_pos=params['add_pos']
         self.pos_dis = params['pos_limit']  # 设置位置的范围
         self.pos_dim = params['pos_dim']  # 设置位置嵌入的维度
-
+        self.device = torch.device("cuda" if params['gpu'] != -1 else "cpu")
 
         self.pos_num = 2 * self.pos_dis + 3# 设置位置的总个数
         # self.max_sent_length = params['max_sent_length']
@@ -57,16 +57,7 @@ class BiGRU(nn.Module):
                             bidirectional=True)
 
         self.fc = nn.Linear(self.gru_dim * 2, self.output_size)
-        # self._init_hidden_state()
 
-    def _init_hidden_state(self, last_batch_size=None):
-        if last_batch_size:
-            batch_size = last_batch_size
-        else:
-            batch_size = self.batch_size
-        self.hidden_state = torch.zeros(2, self.hidden_state)
-        if torch.cuda.is_available():
-            self.hidden_state = self.hidden_state.cuda()
 
     def encoder_layer(self, token, pos1, pos2):
         word_emb = token  # B*L*word_dim
@@ -78,11 +69,11 @@ class BiGRU(nn.Module):
         bag,max_length,pairs=self.get_sentences_in_bag(input,entities,entities_num)
         # batch size有可能是剩余的
         batch_size = entities_num.size(0)
-        bags_res = torch.zeros((batch_size, max_length, max_length, self.output_size)).cuda()
+        bags_res = torch.zeros((batch_size, max_length, max_length, self.output_size)).to(self.device)
         # bag = bag.reshape((-1, bag.shape[2], bag.shape[3], bag.shape[4]))
         if bag.size!=0:
             bag_input_sen = nn.utils.rnn.pad_sequence(bag, batch_first=True, padding_value=0)
-            gru_input_sen= bag_input_sen.permute(1, 0, 2, 3)
+            gru_input_sen= bag_input_sen.permute(1, 0, 2, 3).to(self.device)
             word_att_out=[]
             # todo 按照batch还是一个一个句子
             for sen in gru_input_sen:
@@ -136,6 +127,9 @@ class BiGRU(nn.Module):
                     else:
                         indexs = list(set(batch_sentences[a]) & set(batch_sentences[b]))
                     if indexs:
+                        # 补全太多容易out of memory
+                        if len(indexs)>5:
+                            indexs=indexs[:5]
                         # 加入位置向量
                         if self.add_pos:
                             pos1_all = []
@@ -151,8 +145,8 @@ class BiGRU(nn.Module):
                                     pos2.append(self.__get_pos_index(p - p2))
                                 pos1_all.append(np.array(pos1))
                                 pos2_all.append(np.array(pos2))
-                            pos1_all=torch.from_numpy(np.array(pos1_all)).cuda()
-                            pos2_all = torch.from_numpy(np.array(pos2_all)).cuda()
+                            pos1_all=torch.from_numpy(np.array(pos1_all)).to(self.device)
+                            pos2_all = torch.from_numpy(np.array(pos2_all)).to(self.device)
                             sentences_encode=self.encoder_layer(input[indexs],pos1_all,pos2_all)
                         else:
                             sentences_encode =input[indexs]

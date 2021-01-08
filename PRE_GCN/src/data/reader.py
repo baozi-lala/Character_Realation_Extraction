@@ -82,6 +82,11 @@ def read(input_file, documents, entities, relations,word2index):
         print("input file ", input_file, "DocPRE" in input_file)
         for line in infile.readlines():
             line = json.loads(line)
+            if len(line['sentences'])<1 or len(line['sentences'])>50:
+                continue
+            if len(line['entities'])<1 or len(line['entities'])>10:
+                continue
+
             pmid = str(line['id'])
             text = line['sentences']
             if not text:

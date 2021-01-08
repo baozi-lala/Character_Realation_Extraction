@@ -46,7 +46,7 @@ class Trainer:
         self.loader = loader
         self.model_folder = model_folder
 
-        self.device = torch.device("cuda:"+str(params['gpu']) if params['gpu'] != -1 else "cpu")
+        self.device = torch.device("cuda" if params['gpu'] != -1 else "cpu")
         self.gc = params['gc']
         self.epoch = params['epoch']
         self.es = params['early_stop']
@@ -207,7 +207,7 @@ class Trainer:
             # with autograd.detect_anomaly():
             self.optimizer.zero_grad()
             loss, stats, predictions, select, pred_pairs, multi_truths, mask, relation_label = self.model(batch)
-            pred_pairs = torch.sigmoid(pred_pairs)
+            # pred_pairs = torch.sigmoid(pred_pairs)
             # self.optimizer.zero_grad()
             loss.backward()  # backward computation
 
@@ -218,6 +218,7 @@ class Trainer:
 
             relation_label = relation_label.to('cpu').data.numpy()
             predictions = predictions.to('cpu').data.numpy()
+            # batches
             output['loss'] += [float(loss.item())]
             output['tp'] += [stats['tp'].to('cpu').data.numpy()]
             output['fp'] += [stats['fp'].to('cpu').data.numpy()]
@@ -236,7 +237,7 @@ class Trainer:
                 else:
                     self.acc_not_NA.add(predictions[i] == label)
                 self.acc_total.add(predictions[i] == label)
-
+        # 一个epoch
         total_loss, scores = self.performance(output)
         t2 = time()
 
@@ -539,6 +540,7 @@ class Trainer:
 
         ent_count_sep=0
         for i, b in enumerate(batch):
+            # print("doc",i)
             current_text = list(itertools.chain.from_iterable(b['text']))
             full_text += current_text
             new_batch['bert_token'] += [b['bert_token']]
@@ -552,11 +554,14 @@ class Trainer:
                 for i,j in zip(e[4],e[2]):
                     temp_sep += [[e[0] + ent_count_sep, e[1], i + word_count, j + sent_count,e[5]]]  # id  name_id pos sent_id, type
             # id, name_id,pos,sent_id,type
-            new_batch['entities'] += [np.array(temp)]
+
+            new_batch['entities'] += [np.array(temp,dtype=object)]
             new_batch['entities_sep'] += [np.array(temp_sep)]
             word_count += sum([len(s) for s in b['text']])
-            ent_count = max([t[0] for t in temp]) + 1
-            ent_count_sep=max([t[0] for t in temp_sep]) + 1
+            if len(temp) > 0:
+                ent_count = max([t[0] for t in temp]) + 1
+            if len(temp_sep) > 0:
+                ent_count_sep=max([t[0] for t in temp_sep]) + 1
             sent_count += len(b['text'])
         # print(ent_count)
         # print(word_count)

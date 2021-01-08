@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import json
 
 import torch
 import random
@@ -8,9 +9,7 @@ import numpy as np
 from data.dataset import DocRelationDataset
 from data.loader import DataLoader, ConfigLoader
 from nnet.trainer import Trainer
-from utils.utils import setup_log, load_model, load_mappings
-import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = '3'
+from utils.utils import setup_log, load_model, load_mappings,plot_learning_curve
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -33,16 +32,16 @@ def train(parameters):
     #     print('\nLoading mappings ...')
     #     train_loader = load_mappings(parameters['remodelfile'])
     # else:
-    print('Loading training data ...')
+    # print('Loading training data ...')
     train_loader = DataLoader(parameters['train_data'], parameters)
     train_loader(embeds=parameters['embeds'], parameters=parameters)
     train_data, _ = DocRelationDataset(train_loader, 'train', parameters, train_loader).__call__()
-
+    # operate_data(train_data, "train_data.json")
     print('\nLoading testing data ...')
     test_loader = DataLoader(parameters['test_data'], parameters, train_loader)
     test_loader(parameters=parameters)
     test_data, prune_recall = DocRelationDataset(test_loader, 'test', parameters, train_loader).__call__()
-
+    # operate_data(test_data, "test_data.json")
     # print("prune_recall-->", str(prune_recall))
     ###################################
     # Training
@@ -57,6 +56,21 @@ def train(parameters):
     # if parameters['save_model']:
     #     save_model(model_folder, trainer, train_loader)
 
+class NumpyEncoder(json.JSONEncoder):
+    """ Special json encoder for numpy types """
+
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+def operate_data(train,str):
+    dumped = json.dumps(train, cls=NumpyEncoder)
+    with open('../data/DocPRE/processed/'+str, 'w', encoding='utf-8') as f:
+        json.dump(dumped, f, ensure_ascii=False)
 
 def _test(parameters):
     model_folder = setup_log(parameters, parameters['save_pred'] + '_test')
@@ -69,7 +83,7 @@ def _test(parameters):
     test_loader(parameters=parameters)
     test_data, prune_recall = DocRelationDataset(test_loader, 'test', parameters, train_loader).__call__()
 
-    m = Trainer(train_loader, parameters, {'train': [], 'test': test_data}, model_folder, prune_recall)
+    m = Trainer(train_loader, parameters, {'train': [], 'test': test_data}, model_folder)
     trainer = load_model(parameters['remodelfile'], m)
     trainer.eval_epoch(final=True, save_predictions=True)
 

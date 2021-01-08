@@ -164,11 +164,38 @@ class Statics(object):
         # plt.show()
         plt.savefig('./bar_chart.png')
 
-
-
+# 获取人名库1
+def get_name_corpus():
+    conn = pymongo.MongoClient('127.0.0.1', 27017)
+    col = conn['person_relation_dataset']['relation_map_v2']
+    doc = col.find(no_cursor_timeout=True).sort("_id")
+    name_corpus=set()
+    for d in doc:
+        name_corpus.add(str(d['person1']).strip())
+        name_corpus.add(str(d['person2']).strip())
+    name_corpus=list(name_corpus)
+    with open('files/name_corpus.txt', 'w', encoding="UTF-8") as f:
+        for name in name_corpus:
+            f.write(name)
+            f.write('\n')
+# 获取人名库2
+def get_name_corpus_2():
+    name_corpus = set()
+    with open('files/relation_final.txt', 'r', encoding="UTF-8") as relation_final:
+        for line in relation_final:
+            persons = line.split("###")[0].split('%%%')
+            name_corpus.add(str(persons[0]).strip())
+            name_corpus.add(str(persons[1]).strip())
+    name_corpus = list(name_corpus)
+    name_corpus.sort()
+    with open('files/name_corpus.txt', 'w', encoding="UTF-8") as f:
+        for name in name_corpus:
+            f.write(name)
+            f.write('\n')
 if __name__ == '__main__':
-    h=Statics()
-    h.calcu_relation()
+    get_name_corpus_2()
+    # h=Statics()
+    # h.calcu_relation()
     # a,b=h.delete_repeat()
     # filename = 'relation_data.txt'
     # # filename.writelines(json.dumps(b)+'\n')

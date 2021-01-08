@@ -43,9 +43,13 @@ class DocRelationDataset:
         max_node_cnt = 0
         miss_word = 0
         miss_word_dev = 0
+        cnt=0
         for pmid in pbar:
             pbar.set_description('  Preparing {} data - PMID {}'.format(self.data_type.upper(), pmid))
-
+            if len(self.loader.entities[pmid].items())<1:
+                # cnt+=1
+                # print("no entities ",cnt)
+                continue
             # TEXT
             doc = []
             sens_len = []
@@ -110,10 +114,10 @@ class DocRelationDataset:
             for s, sentence in enumerate(self.loader.documents[pmid]):
                 nodes += [[s, s, [s], [s],[s], 2]]
             # entity：0,sentence:2
-            nodes = np.array(nodes)
+            nodes = np.array(nodes,dtype=object)
 
             max_node_cnt = max(max_node_cnt, nodes.shape[0])
-            ent = np.array(ent)
+            ent = np.array(ent, dtype=object)
 
             # RELATIONS
             # 当前文档的实体keys
