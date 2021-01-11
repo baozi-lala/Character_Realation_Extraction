@@ -1,0 +1,75 @@
+pretrain_l_m: none
+# network
+batch: 32
+epoch: 200
+bilstm_layers: 1
+word_dim: 100
+lstm_dim: 128
+out_dim: 128
+type_dim: 20
+coref_dim: 20
+dist_dim: 20
+gcn_hidden_dim: 128
+gcn_att_dim: 64
+gat_flag: false
+gcn_num_layers: 2
+gcn_in_drop: 0.2
+gcn_out_drop: 0.2
+mlp_layers: 2
+NA_NUM: 0.1
+adj_is_sparse: False
+
+contextgcn: true
+beta: 0.8
+drop_i: 0.2 # 0.5
+drop_m: 0.0
+drop_o: 0.2 # 0.3
+lr: 0.001
+bert_lr: 0.00001
+lr_decay_rate: 0.1
+lr_decay_step: 10000
+gc: 10
+reg: 0
+opt: adam
+loss_weight: false
+patience: 10
+unk_w_prob: 0.0
+min_w_freq: 1
+init_train_epochs: 1
+
+# data based
+dep_adj_no_split: true
+train_data: ../data/DocRED/processed/train+dev.data   # best epoch 105  input_theta 0.7794
+test_data: ../data/DocRED/processed/dev.data
+embeds: true
+folder: ../results/docred-dev
+save_pred: dev
+
+# options (chosen from parse input otherwise false)
+lowercase: true
+plot: true
+show_class: false
+param_avg: false
+early_stop: true
+save_model: true
+finaldist: true  # EE  # it is good
+freeze_words: true
+re_train: true
+
+# extra
+seed: 0
+shuffle_data: true
+label2ignore: NA
+primary_metric: micro_f
+
+# old
+types: true
+context: false  # MM
+dist: true  # MM SS
+direction: l2r+r2l
+include_pairs: []
+classify_pairs: []
+edges: ['MM', 'ME', 'MS', 'ES', 'SS-ind'] ## SS-ind
+rgcn_hidden_dim: 128
+rgcn_num_layers: 2
+walks_iter: 3
