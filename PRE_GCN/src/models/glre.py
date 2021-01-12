@@ -290,7 +290,8 @@ class GLRE(BaseModel):
         # graph_select = torch.cat((graph_select, output_gru), dim=-1)
         # 待预测的实体对
         select, _ = self.select_pairs(nodes_info, (r_idx, c_idx),self.device)
-        graph_select = torch.cat((graph_select, output_gru), dim=3)
+        if self.more_gru:
+            graph_select = torch.cat((graph_select, output_gru), dim=3)
         graph_select = graph_select[select]
         if self.mlp_layer>-1:
             graph_select = self.out_mlp(graph_select)

@@ -7,7 +7,7 @@ import numpy as np
 import json
 
 EntityInfo = recordtype('EntityInfo', 'id name sentNo pos postotal')
-PairInfo = recordtype('PairInfo', 'type')
+PairInfo = recordtype('PairInfo', 'type cross intrain')
 
 
 def chunks(l, n, sen_len=None, word_len=None):
@@ -70,7 +70,7 @@ def get_distance(e1_sentNo, e2_sentNo):
     return distance
 
 
-def read(input_file, documents, entities, relations,word2index):
+def read(input_file, documents, entities, relations,word2index,intrain):
     """
     Read the full document at a time.
     """
@@ -96,6 +96,7 @@ def read(input_file, documents, entities, relations,word2index):
             # if "DocPRE" in input_file:
             #
             #     prs = chunks(line[2:], 18, sen_len, word_len)
+            entities_dist = []
 
             if pmid not in documents:
                 documents[pmid] = text
@@ -129,15 +130,23 @@ def read(input_file, documents, entities, relations,word2index):
                         name_id=-1
 
                     entities[pmid][id] = EntityInfo(p['id'], name_id, senId, pos, postotal)
-
+                    entities_dist.append((id, min([int(a) for a in pos.split(':')])))
             for label in line['lables']:
+                entity_pair_dis = get_distance(entities[pmid][str(label['p1'])].sentNo,
+                                               entities[pmid][str(label['p2'])].sentNo)
                 if (str(label['p1']), str(label['p2'])) not in relations[pmid]:
-                    relations[pmid][(str(label['p1']), str(label['p2']))]=[PairInfo(label['r'])]
+                    # todo 这里是多关系 后面需要修改为单关系
+                    relations[pmid][(str(label['p1']), str(label['p2']))]=[PairInfo(label['r'],entity_pair_dis, intrain)]
+                    allp += 1
                 else:
-                    relations[pmid][(str(label['p1']), str(label['p2']))].append(PairInfo(label['r']))
-
-
+                    relations[pmid][(str(label['p1']), str(label['p2']))].append(PairInfo(label['r'],entity_pair_dis, intrain))
+            entities_dist.sort(key=lambda x: x[1], reverse=False)
             entities_cor_id[pmid] = {}
+            for coref_id, key in enumerate(entities_dist):
+                entities_cor_id[pmid][key[0]] = coref_id + 1
+            # assert len(relations[pmid]) == allp
+
+
 
     return lengths, sents, documents, entities, relations, entities_cor_id
 def getPos(pos,lens):

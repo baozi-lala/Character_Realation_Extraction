@@ -12,7 +12,6 @@ from collections import OrderedDict
 from nnet.transformers_word_handle import transformers_word_handle
 from utils.adj_utils import preprocess_adj, sparse_mxs_to_torch_sparse_tensor
 
-
 class DocRelationDataset:
 
     def __init__(self, loader, data_type, params, mappings):
@@ -108,7 +107,7 @@ class DocRelationDataset:
             #         ent += [[id_, i.name, int(sent_id), int(pos),int(pos2), 1]]
             #         nodes_mention += [[id_, i.name, int(sent_id), int(pos), int(pos2), 1]]
             ent+=nodes
-            # ent.sort(key=lambda x: x[0], reverse=False)
+            ent.sort(key=lambda x: x[0], reverse=False)
             # nodes_mention.sort(key=lambda x: x[0], reverse=False)
             # nodes += nodes_mention
             for s, sentence in enumerate(self.loader.documents[pmid]):

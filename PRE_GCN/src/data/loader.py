@@ -31,7 +31,7 @@ class ConfigLoader:
 
         parser.add_argument('--config_file', type=str,default='./configs/docpre_basebert.yaml')
         parser.add_argument('--output_path', type=str, default='./results/docpre-dev/docred_basebert_full/')
-        parser.add_argument('--test_data', type=str,default='../data/DocPRE/processed/dev1.json')
+        parser.add_argument('--test_data', type=str,default='../data/DocPRE/processed/dev1_v2.json')
         parser.add_argument('--save_pred', type=str,default='dev')
 
         parser.add_argument('--batch', type=int, default=8, help='batch size')
@@ -82,14 +82,16 @@ class DataLoader:
         self.dataset = params['dataset']
         if params['dataset'] == "PRE_data":
             self.base_file = "../data/DocPRE/processed/"
-        else:
-            self.base_file = "../data/CDR/processed/"
 
         self.entities_cor_id = None
         if self.params['emb_method']:
-            self.word2index = json.load(open(os.path.join(self.base_file, "word2id.json"),'r', encoding='UTF-8'))
+            # tx embed
+            self.word2index = json.load(open(os.path.join(self.params['emb_method_file_path'],self.params['emb_method_file']+"_word2id.json"),'r', encoding='UTF-8'))
+            self.word2index['PAD'] = len(self.word2index)  # 添加UNK和BLANK的id
+            self.word2index['UNK'] = len(self.word2index)
+
         else:
-            self.word2index = json.load(open(os.path.join(self.base_file, "word2id.json"),'r', encoding='UTF-8'))
+            self.word2index = json.load(open(os.path.join(self.params['emb_method_file_path'], self.params['emb_method_file']+"_word2id.json"),'r', encoding='UTF-8'))
         self.index2word = {v: k for k, v in self.word2index.items()}
         self.n_words, self.word2count = len(self.word2index.keys()), {'<UNK>': 1}
 
@@ -102,6 +104,18 @@ class DataLoader:
         self.n_rel, self.rel2count = len(self.rel2index.keys()), {}
 
         self.documents, self.entities, self.pairs = OrderedDict(), OrderedDict(), OrderedDict()
+
+        self.dis2idx_dir = np.zeros((800), dtype='int64') # distance feature
+        self.dis2idx_dir[1] = 1
+        self.dis2idx_dir[2:] = 2
+        self.dis2idx_dir[4:] = 3
+        self.dis2idx_dir[8:] = 4
+        self.dis2idx_dir[16:] = 5
+        self.dis2idx_dir[32:] = 6
+        self.dis2idx_dir[64:] = 7
+        self.dis2idx_dir[128:] = 8
+        self.dis2idx_dir[256:] = 9
+        self.dis_size = 20
 
 
     def find_ignore_label(self):
@@ -186,16 +200,27 @@ class DataLoader:
                         continue
                     self.add_word(word)
                     self.pre_embeds[word] = np.asarray(vec, 'f')
+        self.add_word('UNK')
+        self.pre_embeds['UNK'] = np.asarray(np.random.normal(size=word_dim, loc=0, scale=0.05), 'f')
+        self.add_word('PAD')
+        self.pre_embeds['PAD'] = np.asarray(np.random.normal(size=word_dim, loc=0, scale=0.05), 'f')
+        # todo 用所有词向量的平均
+        # embed_mean, embed_std = word_embed.mean(), word_embed.std()
+        #
+        # pad_embed = np.random.normal(embed_mean, embed_std,
+        #                              (2, self.word_dim))  # append二维数组[pad,unk],每个300维，值为均值与std
+        # word_embed = np.concatenate((pad_embed, word_embed), axis=0)
+        # word_embed = word_embed.astype(np.float32)
         self.pre_words = [w for w, e in self.pre_embeds.items()]
         print('  Found pre-trained word embeddings: {} x {}'.format(len(self.pre_embeds), word_dim), end="\n")
 
     def load_doc_embeds(self):
         self.pre_embeds = OrderedDict()
-        word2id = json.load(open('../data/DocPRE/processed/word2id.json', 'r', encoding='utf-8'))
+        word2id = json.load(open('../data/DocPRE/word_vector/processed/'+self.params["emb_method_file"]+"_word2id.json", 'r', encoding='utf-8'))
         id2word = {id: word for word, id in word2id.items()}
         import numpy as np
-        vecs = np.load('../data/DocPRE/processed/vec.npy')
-        word_dim = 768
+        vecs = np.load('../data/DocPRE/word_vector/processed/'+self.params["emb_method_file"]+'_vec.npy')
+        word_dim = self.params['word_dim']
         for id in range(vecs.shape[0]):
             word = id2word.get(id)
             vec = vecs[id]
@@ -218,7 +243,7 @@ class DataLoader:
         Read input.
         """
         lengths, sents, self.documents, self.entities, self.pairs, self.entities_cor_id = \
-            read(self.input, self.documents, self.entities, self.pairs,self.word2index)
+            read(self.input, self.documents, self.entities, self.pairs,self.word2index,True)
 
         self.find_max_length(lengths)
 
