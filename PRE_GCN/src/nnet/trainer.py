@@ -25,9 +25,10 @@ from utils.metrics_util import Accuracy
 torch.set_printoptions(profile="full")
 np.set_printoptions(threshold=np.inf)
 # random.seed(0)
-
+# import os
+# os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 class Trainer:
-    def __init__(self, loader, params, data, model_folder):
+    def __init__(self, loader, params, data, model_folder, prune_recall):
         """
         Trainer object.
 
@@ -41,6 +42,7 @@ class Trainer:
         self.acc_total = Accuracy()
 
         self.data = data
+        self.test_prune_recall = prune_recall
         self.params = params
         self.rel_size = loader.n_rel
         self.loader = loader
@@ -207,7 +209,7 @@ class Trainer:
             # with autograd.detect_anomaly():
             self.optimizer.zero_grad()
             loss, stats, predictions, select, pred_pairs, multi_truths, mask, relation_label = self.model(batch)
-            # pred_pairs = torch.sigmoid(pred_pairs)
+            pred_pairs = torch.sigmoid(pred_pairs)
             # self.optimizer.zero_grad()
             loss.backward()  # backward computation
 
@@ -464,6 +466,14 @@ class Trainer:
         print('Ignore ma_f1 {:3.4f} | input_theta {:3.4f} | test_result F1 {:3.4f} | P {:3.4f} | R {:3.4f} | AUC {:3.4f}'
                 .format(f1, input_theta, f1_arr[w], pr_y[w], pr_x[w], auc))
 
+        if isTest:
+            # item[3]
+            print(self.test_prune_recall)
+            self.prune_f1_cal(test_result, self.test_prune_recall['0-1'], input_theta, 0, 1)
+            self.prune_f1_cal(test_result, self.test_prune_recall['1-3'], input_theta, 1, 3)
+            self.prune_f1_cal(test_result, self.test_prune_recall['0-3'], input_theta, 0, 3)
+            self.prune_f1_cal(test_result, self.test_prune_recall['1-max'], input_theta, 1, 10000)
+            self.prune_f1_cal(test_result, self.test_prune_recall['3-max'], input_theta, 3, 10000)
 
         return input_theta, w, f1_all
 
@@ -576,10 +586,10 @@ class Trainer:
         converted_batch = concat_examples(batch_, device=self.device, padding=-1)
 
         converted_batch['adjacency'][converted_batch['adjacency'] == -1] = 0
-        # converted_batch['dist_dir'][converted_batch['dist_dir'] == -1] = 0
+        converted_batch['dist_dir'][converted_batch['dist_dir'] == -1] = 0
 
         new_batch['adjacency'] = converted_batch['adjacency'].float()  # 8,107,107
-        # new_batch['distances_dir'] = converted_batch['dist_dir'].long()  # 2,71,71
+        new_batch['distances_dir'] = converted_batch['dist_dir'].long()  # 2,71,71
         new_batch['relations'] = converted_batch['rels'].float()
         new_batch['multi_relations'] = converted_batch['multi_rels'].float().clone()
         if istrain and self.params['NA_NUM'] < 1.0:

@@ -82,8 +82,8 @@ class GLRE(BaseModel):
         #     else:
         #         input_dim += params['lstm_dim'] * 2
         #
-        # if params['finaldist']:
-        #     input_dim += params['dist_dim'] * 2
+        if params['finaldist']:
+            input_dim += params['dist_dim'] * 2
 
 
         if params['context_att']:
@@ -105,7 +105,7 @@ class GLRE(BaseModel):
                                      dropout=params['drop_o'])
 
         self.rel_size = sizes['rel_size']
-        # self.finaldist = params['finaldist']
+        self.finaldist = params['finaldist']
         self.context_att = params['context_att']
         self.pretrain_l_m = params['pretrain_l_m']
         # self.local_rep = params['local_rep']
@@ -136,7 +136,7 @@ class GLRE(BaseModel):
         """
 
         # all nodes in order: entities - mentions - sentences
-        nodes = torch.cat(nodes, dim=0)  # e + m + s (all)
+        nodes = torch.cat(nodes, dim=0)  # e  + s (all)
         nodes_info = self.node_info(section, info)                 # info/node: node type | semantic type | sentence ID
 
 
@@ -153,9 +153,10 @@ class GLRE(BaseModel):
 
     def node_layer(self, encoded_seq, info, word_sec):
         # SENTENCE NODES
+        # todo 这里是不是有改进的点
         sentences = torch.mean(encoded_seq, dim=1)  # sentence nodes (avg of sentence words)
 
-        # MENTION & ENTITY NODES
+        # ENTITY NODES
         encoded_seq_token = rm_pad(encoded_seq, word_sec)
         entities = self.merge_tokens(info, encoded_seq_token)
         # entities = self.merge_mentions(info, mentions)  # entity nodes
@@ -276,7 +277,13 @@ class GLRE(BaseModel):
         #         relation_rep_h = torch.cat((relation_rep_h, entitys_pair_rep_h), dim=-1)
         #         relation_rep_t = torch.cat((relation_rep_t, entitys_pair_rep_t), dim=-1)
 
-
+        if self.finaldist:
+            dis_h_2_t = batch['distances_dir'] + 10
+            dis_t_2_h = -batch['distances_dir'] + 10
+            dist_dir_h_t_vec = self.dist_embed_dir(dis_h_2_t)
+            dist_dir_t_h_vec = self.dist_embed_dir(dis_t_2_h)
+            relation_rep_h = torch.cat((relation_rep_h, dist_dir_h_t_vec), dim=-1)
+            relation_rep_t = torch.cat((relation_rep_t, dist_dir_t_h_vec), dim=-1)
         graph_select = torch.cat((relation_rep_h, relation_rep_t), dim=-1)
 
         if self.context_att:
@@ -303,50 +310,3 @@ class GLRE(BaseModel):
         return loss, stats, preds, select, pred_pairs, multi_truth, mask, truth
 
 
-class Local_rep_layer(nn.Module):
-    def __init__(self, params):
-        super(Local_rep_layer, self).__init__()
-        self.query = params['query']
-        input_dim = params['rgcn_hidden_dim']
-        self.device = torch.device("cuda" if params['gpu'] != -1 else "cpu")
-
-        self.multiheadattention = MultiHeadAttention(input_dim, num_heads=params['att_head_num'], dropout=params['att_dropout'])
-        self.multiheadattention1 = MultiHeadAttention(input_dim, num_heads=params['att_head_num'],
-                                                     dropout=params['att_dropout'])
-
-
-    def forward(self, info, section, nodes, global_nodes):
-        """
-            :param info: mention_size * 5  <entity_id, entity_type, start_wid, end_wid, sentence_id, origin_sen_id, node_type>
-            :param section batch_size * 3 <entity_size, mention_size, sen_size>
-            :param nodes <batch_size * node_size>
-        """
-        entities, mentions, sentences = nodes  # entity_size * dim
-        entities = split_n_pad(entities, section[:, 0])  # batch_size * entity_size * -1
-        if self.query == 'global':
-            entities = global_nodes
-
-        entity_size = section[:, 0].max()
-        mentions = split_n_pad(mentions, section[:, 1])
-
-        mention_sen_rep = F.embedding(info[:, 4], sentences)  # mention_size * sen_dim
-        mention_sen_rep = split_n_pad(mention_sen_rep, section[:, 1])
-
-        eid_ranges = torch.arange(0, max(info[:, 0]) + 1).to(self.device)
-        eid_ranges = split_n_pad(eid_ranges, section[:, 0], pad=-2)  # batch_size * men_size
-
-
-        r_idx, c_idx = torch.meshgrid(torch.arange(entity_size).to(self.device),
-                                          torch.arange(entity_size).to(self.device))
-        query_1 = entities[:, r_idx]  # 2 * 30 * 30 * 128
-        query_2 = entities[:, c_idx]
-
-        info = split_n_pad(info, section[:, 1], pad=-1)
-        m_ids, e_ids = torch.broadcast_tensors(info[:, :, 0].unsqueeze(1), eid_ranges.unsqueeze(-1))
-        index_m = torch.ne(m_ids, e_ids).to(self.device)  # batch_size * entity_size * mention_size
-        index_m_h = index_m.unsqueeze(2).repeat(1, 1, entity_size, 1).reshape(index_m.shape[0], entity_size*entity_size, -1).to(self.device)
-        index_m_t = index_m.unsqueeze(1).repeat(1, entity_size, 1, 1).reshape(index_m.shape[0], entity_size*entity_size, -1).to(self.device)
-
-        entitys_pair_rep_h, h_score = self.multiheadattention(mention_sen_rep, mentions, query_2, index_m_h)
-        entitys_pair_rep_t, t_score = self.multiheadattention1(mention_sen_rep, mentions, query_1, index_m_t)
-        return entitys_pair_rep_h, entitys_pair_rep_t

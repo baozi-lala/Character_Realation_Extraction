@@ -20,8 +20,8 @@ lstm_dim: 256
 out_dim: 256
 #type_dim: 20
 dist_dim: 20
-finaldist: false
-types: false
+finaldist: true
+types: true
 bilstm_layers: 1
 rgcn_hidden_dim: 256
 rgcn_num_layers: 2
@@ -30,7 +30,7 @@ gcn_out_drop: 0.2
 
 # network
 batch: 8
-epoch: 200
+epoch: 50
 drop_i: 0.5 # 0.5
 drop_m: 0.0
 drop_o: 0.3 # 0.3
@@ -79,11 +79,11 @@ early_stop: true
 save_model: true
 freeze_words: true
 
-more_gru: false
+more_gru: true
 # extra
 seed: 0
 shuffle_data: true
 label2ignore: unknown
 primary_metric: micro_f
 #direction: l2r+r2l
-gpu: 1
+gpu: 0

@@ -21,8 +21,8 @@ class ConfigLoader:
     def load_cmd():
         parser = argparse.ArgumentParser()
         # parser.add_argument('--config', type=str, required=True, help='Yaml parameter file')
-        parser.add_argument('--train', action='store_true', default=True, help='Training mode - model is saved')
-        parser.add_argument('--test', action='store_true', help='Testing mode - needs a model to load')
+        parser.add_argument('--train', action='store_true', default=False, help='Training mode - model is saved')
+        parser.add_argument('--test', action='store_true',default=True, help='Testing mode - needs a model to load')
 
         parser.add_argument("--feature", default=str)
 
@@ -105,7 +105,7 @@ class DataLoader:
 
         self.documents, self.entities, self.pairs = OrderedDict(), OrderedDict(), OrderedDict()
 
-        self.dis2idx_dir = np.zeros((800), dtype='int64') # distance feature
+        self.dis2idx_dir = np.zeros((2000), dtype='int64') # distance feature
         self.dis2idx_dir[1] = 1
         self.dis2idx_dir[2:] = 2
         self.dis2idx_dir[4:] = 3
@@ -204,6 +204,7 @@ class DataLoader:
         self.pre_embeds['UNK'] = np.asarray(np.random.normal(size=word_dim, loc=0, scale=0.05), 'f')
         self.add_word('PAD')
         self.pre_embeds['PAD'] = np.asarray(np.random.normal(size=word_dim, loc=0, scale=0.05), 'f')
+        self.pre_embeds['PAD'] = np.asarray(np.random.normal(size=word_dim, loc=0, scale=0.05), 'f')
         # todo 用所有词向量的平均
         # embed_mean, embed_std = word_embed.mean(), word_embed.std()
         #
@@ -229,7 +230,7 @@ class DataLoader:
             self.pre_embeds[word] = np.asarray(vec)
             # if self.params['lowercase']:
             #     self.pre_embeds[word.lower()] = np.asarray(vec)
-        self.pre_words = [w for w, e in self.pre_embeds.items()]
+        self.load_doc_embeds = [w for w, e in self.pre_embeds.items()]
         print('  Found pre-trained word embeddings: {} x {}'.format(len(self.pre_embeds), word_dim), end="\n")
 
     def find_max_length(self, length):

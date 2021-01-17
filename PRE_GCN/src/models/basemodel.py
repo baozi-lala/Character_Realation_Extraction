@@ -24,20 +24,20 @@ class BaseModel(nn.Module):
         #                           embedding_dim=params['type_dim'], dropout=0.0, ignore=0)
 
 
-        # if params['finaldist']:
-        #     self.dist_embed_dir = EmbedLayer(num_embeddings=20, embedding_dim=params['dist_dim'],
-        #                                      dropout=0.0,
-        #                                      ignore=10,
-        #                                      freeze=False,
-        #                                      pretrained=None,
-        #                                      mapping=None)
+        if params['finaldist']:
+            self.dist_embed_dir = EmbedLayer(num_embeddings=20, embedding_dim=params['dist_dim'],
+                                             dropout=0.0,
+                                             ignore=10,
+                                             freeze=False,
+                                             pretrained=None,
+                                             mapping=None)
 
 
         self.loss = nn.BCEWithLogitsLoss(reduction='none')
 
 
         # hyper-parameters for tuning
-        # self.dist_dim = params['dist_dim']
+        self.dist_dim = params['dist_dim']
         # self.type_dim = params['type_dim']
         self.drop_i = params['drop_i']
         self.drop_o = params['drop_o']
@@ -55,7 +55,7 @@ class BaseModel(nn.Module):
         self.rel_size = sizes['rel_size']
         self.ignore_label = lab2ign
 
-        # self.finaldist = params['finaldist']
+        self.finaldist = params['finaldist']
         self.dataset = params['dataset']
 
     def input_layer(self, words_):

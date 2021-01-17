@@ -10,6 +10,8 @@ from data.dataset import DocRelationDataset
 from data.loader import DataLoader, ConfigLoader
 from nnet.trainer import Trainer
 from utils.utils import setup_log, load_model, load_mappings,plot_learning_curve
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -46,7 +48,7 @@ def train(parameters):
     ###################################
     # Training
     ###################################
-    trainer = Trainer(train_loader, parameters, {'train': train_data, 'test': test_data}, model_folder)
+    trainer = Trainer(train_loader, parameters, {'train': train_data, 'test': test_data}, model_folder, prune_recall)
 
     trainer.run()
 

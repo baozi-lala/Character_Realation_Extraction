@@ -137,6 +137,22 @@ class DocRelationDataset:
                     #     assert relation_multi_label[ents_keys.index(r[0]), ents_keys.index(r[1]), self.mappings.rel2index[self.loader.ign_label]] != 1.0
                     relation_set.add(self.mappings.rel2index[i.type])
 
+                    if i.type != self.loader.ign_label:
+                        dis_cross = int(i.cross)
+                        if dis_cross == 0:
+                            self.prune_recall['0-1'] += 1
+                            self.prune_recall['0-3'] += 1
+                            self.prune_recall['0-max'] += 1
+                        elif dis_cross < 3:
+                            self.prune_recall['0-3'] += 1
+                            self.prune_recall['1-3'] += 1
+                            self.prune_recall['1-max'] += 1
+                            self.prune_recall['0-max'] += 1
+                        else:
+                            self.prune_recall['0-max'] += 1
+                            self.prune_recall['3-max'] += 1
+                            self.prune_recall['1-max'] += 1
+
                 rel_info[ents_keys.index(r[0]), ents_keys.index(r[1])] = OrderedDict(
                                                                             [('pmid', pmid),
                                                                             ('sentA', self.loader.entities[pmid][r[0]].sentNo),
@@ -145,7 +161,9 @@ class DocRelationDataset:
                                                                             ('doc', self.loader.documents[pmid]),
                                                                             ('entA', self.loader.entities[pmid][r[0]]),
                                                                             ('entB', self.loader.entities[pmid][r[1]]),
-                                                                            ('rel', relation_set)])
+                                                                            ('rel', relation_set),
+                                                                            ('intrain', ii[rt].intrain),
+                                                                            ('cross', ii[rt].cross)])
 
                 # assert nodes[ents_keys.index(r[0])][2] == min([int(ms) for ms in self.loader.entities[pmid][r[0]].mstart.split(':')])
 
@@ -161,16 +179,31 @@ class DocRelationDataset:
 
             r_pos, c_pos = nodes[xv, 3], nodes[yv, 3] # 没有加上sent的长度
             r_pos2, c_pos2 = nodes[xv, 4], nodes[yv, 4]# 加上sent的长度
+
+            # dist feature
+            dist_dir_h_t = np.full((r_id.shape[0], r_id.shape[0]), 0)
+
             # # MM: mention-mention
             # a_start = np.where(np.logical_or(r_id == 1, r_id == 3) & np.logical_or(c_id == 1, c_id == 3), r_pos2, -1)
             # b_start = np.where(np.logical_or(r_id == 1, r_id == 3) & np.logical_or(c_id == 1, c_id == 3), c_pos2, -1)
-            #
-            #
-            # # EE: entity-entity
-            # a_start = np.where((r_id == 0) & (c_id == 0), r_pos2, -1)
-            # b_start = np.where((r_id == 0) & (c_id == 0), c_pos2, -1)
-            #
 
+
+
+            # EE: entity-entity
+            # 第一个出现的位置
+            r_mask_pos = np.full((r_id.shape[0], r_id.shape[0]), 0)
+            c_mask_pos = np.full((r_id.shape[0], r_id.shape[0]), 0)
+            for i in range(r_id.shape[0]):
+                for j in range(r_id.shape[0]):
+                    r_mask_pos[i][j] = r_pos2[i][j][0]
+                    c_mask_pos[i][j] = c_pos2[i][j][0]
+            a_start = np.where((r_id == 0) & (c_id == 0), r_mask_pos, -1)
+            b_start = np.where((r_id == 0) & (c_id == 0), c_mask_pos, -1)
+            dis = a_start - b_start
+
+            dis_index = np.where(dis < 0, -self.mappings.dis2idx_dir[-dis], self.mappings.dis2idx_dir[dis])
+            condition = ((r_id == 0) & (c_id == 0) & (a_start != -1) & (b_start != -1))
+            dist_dir_h_t = np.where(condition, dis_index, dist_dir_h_t)
 
             #######################
             # GRAPH CONNECTIONS
@@ -210,10 +243,9 @@ class DocRelationDataset:
             rgcn_adjacency = sparse_mxs_to_torch_sparse_tensor([sp.coo_matrix(rgcn_adjacency[i]) for i in range(3)])
 
 
-            # dist_dir_h_t = dist_dir_h_t[0: entity_size, 0:entity_size]
+            dist_dir_h_t = dist_dir_h_t[0: entity_size, 0:entity_size]
             self.data += [{'ents': ent, 'rels': trel, 'multi_rels': relation_multi_label,
-                           # 'dist_dir': dist_dir_h_t,
-                           'text': doc, 'info': rel_info,
+                           'dist_dir': dist_dir_h_t, 'text': doc, 'info': rel_info,
                            'adjacency': adjacency, 'rgcn_adjacency': rgcn_adjacency,
                            'section': np.array([len(self.loader.entities[pmid].items()), len(doc), sum([len(s) for s in doc])]),
                            'word_sec': np.array([len(s) for s in doc]),

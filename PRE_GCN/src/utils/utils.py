@@ -261,7 +261,7 @@ def load_model(model_folder, trainer):
 
 
 def load_mappings(model_folder):
-    with open(os.path.join(model_folder, 'mappings.pkl'), 'rb') as f:
+    with open(os.path.join(model_folder, 'mappings.pkl'), 'rb',encoding="utf-8") as f:
         loader = pkl.load(f)
     return loader
 
