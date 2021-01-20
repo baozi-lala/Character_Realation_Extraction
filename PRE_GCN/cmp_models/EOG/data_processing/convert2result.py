@@ -6,7 +6,7 @@ parser.add_argument("--input_path", default=str)
 parser.add_argument("--output_path", type=str)
 inp = parser.parse_args()
 
-input_file = "./data/DocRED/test.json"
+input_file = "./data/DocPRE/test.json"
 ori_data = json.load(open(input_file))
 docid = 0
 docid2title = {}

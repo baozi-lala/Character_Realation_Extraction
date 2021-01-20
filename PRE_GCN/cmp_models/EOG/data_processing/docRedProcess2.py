@@ -8,7 +8,7 @@ import os
 
 nlp = StanfordCoreNLP(r'E:\stanford-corenlp-full-2018-02-27', memory='8g')
 max_length = 512
-deprel2id = json.load(open("../data/DocRED/deprel2id.json", encoding="utf-8"))
+deprel2id = json.load(open("../data/DocPRE/deprel2id.json", encoding="utf-8"))
 
 
 def stanford_nlp(document):
@@ -84,6 +84,6 @@ def main(input_file, output_file, suffix):
 
 
 if __name__ == '__main__':
-    main('../data/DocRED/train_annotated.json', '../data/DocRED/processed/train_annotated_no_split.data', suffix='_train')
-    main('../data/DocRED/dev.json', '../data/DocRED/processed/dev_no_split.data', suffix='_dev')
-    main('../data/DocRED/test.json', '../data/DocRED/processed/test_no_split.data', suffix='_test')
+    main('../data/DocPRE/train_annotated.json', '../data/DocPRE/processed/train_annotated_no_split.data', suffix='_train')
+    main('../data/DocPRE/dev.json', '../data/DocPRE/processed/dev_no_split.data', suffix='_dev')
+    main('../data/DocPRE/test.json', '../data/DocPRE/processed/test_no_split.data', suffix='_test')

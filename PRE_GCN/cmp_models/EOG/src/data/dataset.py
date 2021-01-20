@@ -47,16 +47,16 @@ class DocRelationDataset:
         self.lowercase = params['lowercase']
         self.dep_adj_no_split = params['dep_adj_no_split']
         self.prune_recall = {"0-max":0, "0-1":0, "0-3":0, "1-3":0, "1-max":0, "3-max":0}  # 统计各种范围中的recall数
-        if params['pretrain_l_m'] == 'bert-large':  # 改用large
-            self.bert = transformers_word_handle("bert", 'bert-large-uncased-whole-word-masking', dataset=params['dataset'])
-        elif params['pretrain_l_m'] == 'xlnet-large':
-            self.bert = transformers_word_handle("xlnet", 'xlnet-large-cased')  # xlnet-base-cased
-        elif params['pretrain_l_m'] == 'bert-base':
-            self.bert = transformers_word_handle("bert", 'bert-base-uncased', dataset=params['dataset'])
-        elif params['pretrain_l_m'] == 'xlnet-base':
-            self.bert = transformers_word_handle("xlnet", 'xlnet-base-cased')  # xlnet-base-cased
-        else:
-            self.bert = transformers_word_handle("bert", 'bert-base-uncased')
+        # if params['pretrain_l_m'] == 'bert-large':  # 改用large
+        #     self.bert = transformers_word_handle("bert", 'bert-large-uncased-whole-word-masking', dataset=params['dataset'])
+        # elif params['pretrain_l_m'] == 'xlnet-large':
+        #     self.bert = transformers_word_handle("xlnet", 'xlnet-large-cased')  # xlnet-base-cased
+        # elif params['pretrain_l_m'] == 'bert-base':
+        #     self.bert = transformers_word_handle("bert", 'bert-base-uncased', dataset=params['dataset'])
+        # elif params['pretrain_l_m'] == 'xlnet-base':
+        #     self.bert = transformers_word_handle("xlnet", 'xlnet-base-cased')  # xlnet-base-cased
+        # else:
+        #     self.bert = transformers_word_handle("bert", 'bert-base-uncased')
 
     def __len__(self):
         return len(self.data)
@@ -68,7 +68,10 @@ class DocRelationDataset:
         miss_word_dev = 0
         for pmid in pbar:
             pbar.set_description('  Preparing {} data - PMID {}'.format(self.data_type.upper(), pmid))
-
+            if len(self.loader.entities[pmid].items())<1:
+                # cnt+=1
+                # print("no entities ",cnt)
+                continue
             # TEXT
             doc = []  # 二维列表
             sens_len = []
@@ -99,26 +102,27 @@ class DocRelationDataset:
                         else:
                             miss_word_dev += 1
                             sent += [self.mappings.word2index['UNK']]
-                assert len(sentence) == len(sent), '{}, {}'.format(len(sentence), len(sent))
+                # assert len(sentence) == len(sent), '{}, {}'.format(len(sentence), len(sent))
                 doc += [sent]
                 sens_len.append(len(sent))
 
-            bert_token, bert_mask, bert_starts = self.bert.subword_tokenize_to_ids(words)  # 使用bert预处理文字
-            bert_max_len = bert_starts.sum()
+            # bert_token, bert_mask, bert_starts = self.bert.subword_tokenize_to_ids(words)  # 使用bert预处理文字
+            # bert_max_len = bert_starts.sum()
             # if len(words) != bert_max_len:
             #     print(self.bert.model_name + " 对应的token数目为", bert_max_len, " word数目", len(words))
+            bert_token, bert_mask, bert_starts =[],[],[]
 
             # ner 信息
-            ner = [0] * sum(sens_len)  # 默认类型全为O
-            # coref 信息，实体初始id信息
-            coref_pos = [0] * sum(sens_len)
-            # print(sum(sens_len))
-            for id_, (e, i) in enumerate(self.loader.entities[pmid].items()):
-                for sent_id, m1, m2, itype in zip(i.sentNo.split(':'), i.mstart.split(':'), i.mend.split(':'), i.type.split(':')):
-                    for j in range(int(m1), int(m2)):
-                        ner[j] = self.mappings.type2index[itype]
-                        coref_pos[j] =self.loader.entities_cor_id[pmid][e]
-                        # coref_pos[j] = int(e) + 1  # 实体原始id号, 严禁改为id_，否则学出来大量数据集信息
+            # ner = [0] * sum(sens_len)  # 默认类型全为O
+            # # coref 信息，实体初始id信息
+            # coref_pos = [0] * sum(sens_len)
+            # # print(sum(sens_len))
+            # for id_, (e, i) in enumerate(self.loader.entities[pmid].items()):
+            #     for sent_id, m1, m2, itype in zip(i.sentNo.split(':'), i.mstart.split(':'), i.mend.split(':'), i.type.split(':')):
+            #         for j in range(int(m1), int(m2)):
+            #             ner[j] = self.mappings.type2index[itype]
+            #             coref_pos[j] =self.loader.entities_cor_id[pmid][e]
+            #             # coref_pos[j] = int(e) + 1  # 实体原始id号, 严禁改为id_，否则学出来大量数据集信息
 
             # dep info
             sen_head = self.loader.sens_head[int(pmid)]  # 文档的
@@ -138,31 +142,31 @@ class DocRelationDataset:
             old_id = []
             for id_, (e, i) in enumerate(self.loader.entities[pmid].items()):  # todo 考虑是否按照旧的顺序给entity 编id
                 old_id.append(e)
-                nodes += [[id_, self.mappings.type2index[i.type.split(':')[0]], min([int(ms) for ms in i.mstart.split(':')]),
-                           min([int(me) for me in i.mend.split(':')]), int(i.sentNo.split(':')[0]), 0]]
+                nodes += [[id_, i.name, [int(x) for x in i.sentNo.split(':')],
+                           [int(x) for x in i.pos.split(':')], [int(x) for x in i.postotal.split(':')], 0]]
 
                 for sen_id in i.sentNo.split(':'):
                     ent_sen_mask[id_][int(sen_id)] = 1.0
             entity_size = len(nodes)
 
-            nodes_mention = []
-            for id_, (e, i) in enumerate(self.loader.entities[pmid].items()):
-                for sent_id, m1, m2 in zip(i.sentNo.split(':'), i.mstart.split(':'), i.mend.split(':')):
-                    # ent += [[id_, self.mappings.type2index[i.type.split(':')[0]], min(int(m1), bert_max_len-2), min(int(m2), bert_max_len-1), int(sent_id), 1]]
-                    ent += [[id_, self.mappings.type2index[i.type.split(':')[0]], int(m1), int(m2), int(sent_id), 1]]
-                    nodes_mention += [[id_, self.mappings.type2index[i.type.split(':')[0]], int(m1), int(m2), int(sent_id), 1]]
-
+            # nodes_mention = []
+            # for id_, (e, i) in enumerate(self.loader.entities[pmid].items()):
+            #     for sent_id, m1, m2 in zip(i.sentNo.split(':'), i.mstart.split(':'), i.mend.split(':')):
+            #         # ent += [[id_, self.mappings.type2index[i.type.split(':')[0]], min(int(m1), bert_max_len-2), min(int(m2), bert_max_len-1), int(sent_id), 1]]
+            #         ent += [[id_, self.mappings.type2index[i.type.split(':')[0]], int(m1), int(m2), int(sent_id), 1]]
+            #         nodes_mention += [[id_, self.mappings.type2index[i.type.split(':')[0]], int(m1), int(m2), int(sent_id), 1]]
+            ent+=nodes
             ent.sort(key=lambda x: x[0], reverse=False)
-            nodes_mention.sort(key=lambda x: x[0], reverse=False)  # 便于pronoun指代词介入
-            nodes += nodes_mention
+            # nodes_mention.sort(key=lambda x: x[0], reverse=False)  # 便于pronoun指代词介入
+            # nodes += nodes_mention
             # 针对
             for s, sentence in enumerate(self.loader.documents[pmid]):
-                nodes += [[s, s, s, s, s, 2]]
+                nodes += [[s, s, [s], [s],[s], 2]]
 
-            nodes = np.array(nodes)
+            nodes = np.array(nodes,dtype=object)
             # print("节点个数==》", nodes.shape) # todo mention位置可能越界
             max_node_cnt = max(max_node_cnt, nodes.shape[0])
-            ent = np.array(ent)
+            ent = np.array(ent,dtype=object)
 
             # RELATIONS
             ents_keys = list(self.loader.entities[pmid].keys())  # in order
@@ -177,11 +181,11 @@ class DocRelationDataset:
                 trel[ents_keys.index(r[0]), ents_keys.index(r[1])] = self.mappings.rel2index[ii[0].type]
                 relation_set = set()
                 for i in ii:
-                    assert relation_multi_label[ents_keys.index(r[0]), ents_keys.index(r[1]), self.mappings.rel2index[i.type]] != 1.0
+                    # assert relation_multi_label[ents_keys.index(r[0]), ents_keys.index(r[1]), self.mappings.rel2index[i.type]] != 1.0
                     relation_multi_label[ents_keys.index(r[0]), ents_keys.index(r[1]), self.mappings.rel2index[i.type]] = 1.0
-                    assert self.loader.ign_label == "NA" or self.loader.ign_label == "1:NR:2"
-                    if i.type != self.loader.ign_label:
-                        assert relation_multi_label[ents_keys.index(r[0]), ents_keys.index(r[1]), self.mappings.rel2index[self.loader.ign_label]] != 1.0
+                    # assert self.loader.ign_label == "NA" or self.loader.ign_label == "1:NR:2"
+                    # if i.type != self.loader.ign_label:
+                    #     assert relation_multi_label[ents_keys.index(r[0]), ents_keys.index(r[1]), self.mappings.rel2index[self.loader.ign_label]] != 1.0
                     relation_set.add(self.mappings.rel2index[i.type])
 
                     if i.type != self.loader.ign_label:
@@ -208,11 +212,9 @@ class DocRelationDataset:
                                                                             ('doc', self.loader.documents[pmid]),
                                                                             ('entA', self.loader.entities[pmid][r[0]]),  # 实体lable 或原始id
                                                                             ('entB', self.loader.entities[pmid][r[1]]),
-                                                                            ('rel', relation_set),
-                                                                            ('dir', ii[rt].direction), ('intrain', ii[rt].intrain),
-                                                                            ('cross', ii[rt].cross)])
+                                                                            ('rel', relation_set)])
 
-                assert nodes[ents_keys.index(r[0])][2] == min([int(ms) for ms in self.loader.entities[pmid][r[0]].mstart.split(':')])
+                # assert nodes[ents_keys.index(r[0])][2] == min([int(ms) for ms in self.loader.entities[pmid][r[0]].mstart.split(':')])
 
             #######################
             # DISTANCES
@@ -220,10 +222,12 @@ class DocRelationDataset:
             xv, yv = np.meshgrid(np.arange(nodes.shape[0]), np.arange(nodes.shape[0]), indexing='ij')
 
             r_id, c_id = nodes[xv, 5], nodes[yv, 5]  # node type
-            r_Eid, c_Eid = nodes[xv, 0], nodes[yv, 0]
-            r_Sid, c_Sid = nodes[xv, 4], nodes[yv, 4]
-            r_Ms, c_Ms = nodes[xv, 2], nodes[yv, 2]
-            r_Me, c_Me = nodes[xv, 3]-1, nodes[yv, 3]-1
+            r_Eid, c_Eid = nodes[xv, 0], nodes[yv, 0]  # entity id
+            r_Ename, c_Ename = nodes[xv, 1], nodes[yv, 1]
+            r_Sid, c_Sid = nodes[xv, 2], nodes[yv, 2]
+
+            r_pos, c_pos = nodes[xv, 3], nodes[yv, 3]  # 没有加上sent的长度
+            r_pos2, c_pos2 = nodes[xv, 4], nodes[yv, 4]  # 加上sent的长度
 
             ignore_pos = self.mappings.n_dist
             self.mappings.dist2index[ignore_pos] = ignore_pos
@@ -236,25 +240,25 @@ class DocRelationDataset:
             # MM: mention-mention
             a_start = np.where(np.logical_or(r_id == 1, r_id == 3) & np.logical_or(c_id == 1, c_id == 3), r_Ms, -1)
             a_end = np.where(np.logical_or(r_id == 1, r_id == 3) & np.logical_or(c_id == 1, c_id == 3), r_Me, -1)
-            b_start = np.where(np.logical_or(r_id == 1, r_id == 3) & np.logical_or(c_id == 1, c_id == 3), c_Ms, -1)
-            b_end = np.where(np.logical_or(r_id == 1, r_id == 3) & np.logical_or(c_id == 1, c_id == 3), c_Me, -1)
-
-            dist = np.where((a_end < b_start) & (a_end != -1) & (b_start != -1), abs(b_start - a_end), dist)
-            dist = np.where((b_end < a_start) & (b_end != -1) & (a_start != -1), abs(b_end - a_start), dist)
+            # b_start = np.where(np.logical_or(r_id == 1, r_id == 3) & np.logical_or(c_id == 1, c_id == 3), c_Ms, -1)
+            # b_end = np.where(np.logical_or(r_id == 1, r_id == 3) & np.logical_or(c_id == 1, c_id == 3), c_Me, -1)
+            #
+            # dist = np.where((a_end < b_start) & (a_end != -1) & (b_start != -1), abs(b_start - a_end), dist)
+            # dist = np.where((b_end < a_start) & (b_end != -1) & (a_start != -1), abs(b_end - a_start), dist)
 
             # nested (find the distance between their last words)
-            dist = np.where((b_start <= a_start) & (b_end >= a_end)
-                            & (b_start != -1) & (a_end != -1) & (b_end != -1) & (a_start != -1), abs(b_end-a_end), dist)
-            dist = np.where((b_start >= a_start) & (b_end <= a_end)
-                            & (b_start != -1) & (a_end != -1) & (b_end != -1) & (a_start != -1), abs(a_end-b_end), dist)
+            # dist = np.where((b_start <= a_start) & (b_end >= a_end)
+            #                 & (b_start != -1) & (a_end != -1) & (b_end != -1) & (a_start != -1), abs(b_end-a_end), dist)
+            # dist = np.where((b_start >= a_start) & (b_end <= a_end)
+            #                 & (b_start != -1) & (a_end != -1) & (b_end != -1) & (a_start != -1), abs(a_end-b_end), dist)
             
             # diagonal
-            dist[np.arange(nodes.shape[0]), np.arange(nodes.shape[0])] = 0
-            dis = a_start - b_start
-            dis_index = np.where(dis < 0, -self.mappings.dis2idx_dir[-dis], self.mappings.dis2idx_dir[dis])
-            condition = (np.logical_or(r_id == 1, r_id == 3) & np.logical_or(c_id == 1, c_id == 3)
-                                 & (a_start != -1) & (b_start != -1))
-            dist_dir_h_t = np.where(condition, dis_index, dist_dir_h_t)
+            # dist[np.arange(nodes.shape[0]), np.arange(nodes.shape[0])] = 0
+            # dis = a_start - b_start
+            # dis_index = np.where(dis < 0, -self.mappings.dis2idx_dir[-dis], self.mappings.dis2idx_dir[dis])
+            # condition = (np.logical_or(r_id == 1, r_id == 3) & np.logical_or(c_id == 1, c_id == 3)
+            #                      & (a_start != -1) & (b_start != -1))
+            # dist_dir_h_t = np.where(condition, dis_index, dist_dir_h_t)
             # dist_dir_t_h = np.where(condition, -dis_index + 10, dist_dir_t_h)
 
             # EE: entity-entity

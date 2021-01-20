@@ -1,6 +1,6 @@
 """
-python docRedProcess.py --input_file ../data/DocRED/train_annotated.json \
-                       --output_file ../data/DocRED/processed/train_annotated.data \
+python docRedProcess.py --input_file ../data/DocPRE/train_annotated.json \
+                       --output_file ../data/DocPRE/processed/train_annotated.data \
 """
 import ast
 import json
@@ -12,8 +12,8 @@ nlp = StanfordCoreNLP(r'E:\stanford-corenlp-full-2018-02-27', memory='8g')
 max_length = 512
 max_sen_length = 200
 max_sen_cnt = 36
-char2id = json.load(open("../data/DocRED/char2id.json", encoding="utf-8"))
-deprel2id = json.load(open("../data/DocRED/deprel2id.json", encoding="utf-8"))
+char2id = json.load(open("../data/DocPRE/char2id.json", encoding="utf-8"))
+deprel2id = json.load(open("../data/DocPRE/deprel2id.json", encoding="utf-8"))
 nlp_coref_flag = False
 
 
@@ -210,6 +210,6 @@ def find_cross(head, tail):
 
 
 if __name__ == '__main__':
-    main('../data/DocRED/train_annotated.json', '../data/DocRED/processed/train_annotated.data', suffix='_train')
-    main('../data/DocRED/dev.json', '../data/DocRED/processed/dev.data', suffix='_dev')
-    main('../data/DocRED/test.json', '../data/DocRED/processed/test.data', suffix='_test')
+    main('../data/DocPRE/train_annotated.json', '../data/DocPRE/processed/train_annotated.data', suffix='_train')
+    main('../data/DocPRE/dev.json', '../data/DocPRE/processed/dev.data', suffix='_dev')
+    main('../data/DocPRE/test.json', '../data/DocPRE/processed/test.data', suffix='_test')

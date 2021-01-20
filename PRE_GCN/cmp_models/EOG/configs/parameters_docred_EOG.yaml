@@ -54,10 +54,10 @@ NA_NUM: 0.3  # 0.1==5:1
 
 # data based
 dep_adj_no_split: true
-train_data: ../data/DocRED/processed/train+dev.data  # 91 epoch 0.3693
-test_data: ../data/DocRED/processed/dev.data
+train_data: ../data/DocPRE/processed/train1_v2.json  # 91 epoch 0.3693
+test_data: ../data/DocPRE/processed/dev1_v2.json
 embeds: true
-folder: ../results/docred-dev
+folder: ../results/docpre-dev
 save_pred: dev
 
 # options (chosen from parse input otherwise false)
@@ -73,5 +73,5 @@ re_train: true
 # extra
 seed: 0
 shuffle_data: true
-label2ignore: NA
+label2ignore: unknown
 primary_metric: micro_f

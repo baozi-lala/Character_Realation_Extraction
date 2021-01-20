@@ -29,8 +29,8 @@ adj_is_sparse: False
 
 # data based
 dep_adj_no_split: true
-train_data: ../data/DocRED/processed/train_annotated.data
-test_data: ../data/DocRED/processed/dev.data
+train_data: ../data/DocPRE/processed/train_annotated.data
+test_data: ../data/DocPRE/processed/dev.data
 embeds: true
 folder: ../results/docred-dev
 save_pred: dev

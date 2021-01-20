@@ -2,22 +2,23 @@ import numpy as np
 import os
 import json
 import argparse
-
+import sys
+sys.path.append("/home/baoyingxing/pycharmproject/Character_Realation_Extraction/PRE_GCN/cmp_models/DocRE/gen_data.py")
 import torch
-from stanfordcorenlp import StanfordCoreNLP
+# from stanfordcorenlp import StanfordCoreNLP
 
-from models.Tree import head_to_word_adj
+# from models.Tree import head_to_word_adj
 from util.Adj_Util import preprocess_adj
 from util.CacheDecoreator import TimeDecoreator
 import pickle
 
 """
-step 1: load the DocRED data
+step 1: load the DocPRE data
 step 2: produce dependency tree
 step 3: convert to ids
 """
 parser = argparse.ArgumentParser()
-parser.add_argument('--in_path', type=str, default="./data")
+parser.add_argument('--in_path', type=str, default="data")
 parser.add_argument('--out_path', type=str, default="prepro_data")
 
 args = parser.parse_args()
@@ -26,72 +27,77 @@ out_path = args.out_path
 case_sensitive = False
 
 char_limit = 16
-train_distant_file_name = os.path.join(in_path, 'train_distant.json')
-train_annotated_file_name = os.path.join(in_path, 'train_annotated.json')
-dev_file_name = os.path.join(in_path, 'dev.json')
-test_file_name = os.path.join(in_path, 'test.json')
+# train_distant_file_name = os.path.join(in_path, 'train_distant.json')
+train_annotated_file_name = os.path.join(in_path, 'train1_v2.json')
+dev_file_name = os.path.join(in_path, 'dev1_v2.json')
+test_file_name = os.path.join(in_path, 'test1_v2.json')
 
-rel2id = json.load(open(os.path.join(out_path, 'rel2id.json'), "r"))
+rel2id = json.load(open(os.path.join(out_path, 'rel2id.json'), "r"), encoding='UTF-8')
 id2rel = {v: u for u, v in rel2id.items()}
-json.dump(id2rel, open(os.path.join(out_path, 'id2rel.json'), "w"))
-deprel2id = json.load(open(os.path.join(out_path, 'deprel2id.json'), "r"))
+json.dump(id2rel, open(os.path.join(out_path, 'id2rel.json'), "w"),ensure_ascii=False)
+# deprel2id = json.load(open(os.path.join(out_path, 'deprel2id.json'), "r"))
 fact_in_train = set([])
 fact_in_dev_train = set([])
 
-entity2entity_word_id = json.load(open(os.path.join(out_path, 'entity2id.json'), "r"))
-entity_word_id2mention = json.load(open(os.path.join(out_path, 'entity2mention.json'), "r"))  # 每个实体保留其第一个实体的最长的mention
-
-nlp = StanfordCoreNLP(r'E:\stanford-corenlp-full-2018-02-27')
+# nlp = StanfordCoreNLP(r'E:\stanford-corenlp-full-2018-02-27')
 
 timeer = TimeDecoreator()
 
 
 # @timeer.category()
-def stanford_deprel(sentence, tokenize_size):
-    """
-    produce deprel for each sentence
-    :param sentence:
-    :param tokenize_size: 预先确定的的分词长度
-    :return: stanford_head[i][j] 表示第i个token和第j个token之间存在依赖边
-    """
-    tokenize = nlp.word_tokenize(sentence)
-    assert len(tokenize) == tokenize_size, print(sentence, tokenize, tokenize_size, len(tokenize))
-    deprels = nlp.dependency_parse(sentence)
-
-    stanford_head = [-1] * len(tokenize)  ## len == tokenize_size
-    stanford_deprel = [0] * len(tokenize)
-    lastroot = -1
-    lastlen = 0
-    for i, deprel in enumerate(deprels):
-        # dep.append(deprel[0])  # 依赖关系
-        # governor.append(deprel[1])  # 起始节点  0 表示根节点
-        # dependent.append(deprel[2])  # 终点节点
-        assert len(deprel) >= 3, print(sentence, deprels)
-        # print(deprel)
-        # assert stanford_head[deprel[2] - 1] == 0, print(sentence, tokenize, tokenize_size, len(tokenize))
-        # assert stanford_deprel[deprel[2] - 1] == 0 # 表明该位置还未填值。 目前发现分句存在错误
-        if deprel[1] == 0:
-            lastlen = i
-            if lastroot != -1:
-                stanford_head[deprel[2] - 1 + lastlen] = lastroot
-                stanford_deprel[deprel[2] - 1 + lastlen] = "Next"
-            else:
-                stanford_head[deprel[2] - 1] = deprel[1]
-                stanford_deprel[deprel[2] - 1] = deprel[0]
-            lastroot = deprel[2] + lastlen
-            continue
-        if stanford_head[deprel[2] - 1] == -1:  # 表明该位置还未填值。 目前发现分句存在错误
-            stanford_head[deprel[2] - 1] = deprel[1]
-            stanford_deprel[deprel[2] - 1] = deprel[0]
-        else:
-            assert stanford_head[deprel[2] - 1 + lastlen] == -1
-            stanford_head[deprel[2] - 1 + lastlen] = deprel[1] + lastlen
-            stanford_deprel[deprel[2] - 1 + lastlen] = deprel[0]
-    print(stanford_head)
-    print(stanford_deprel)
-
-    return stanford_deprel, stanford_head
-
+# def stanford_deprel(sentence, tokenize_size):
+#     """
+#     produce deprel for each sentence
+#     :param sentence:
+#     :param tokenize_size: 预先确定的的分词长度
+#     :return: stanford_head[i][j] 表示第i个token和第j个token之间存在依赖边
+#     """
+#     tokenize = nlp.word_tokenize(sentence)
+#     assert len(tokenize) == tokenize_size, print(sentence, tokenize, tokenize_size, len(tokenize))
+#     deprels = nlp.dependency_parse(sentence)
+#
+#     stanford_head = [-1] * len(tokenize)  ## len == tokenize_size
+#     stanford_deprel = [0] * len(tokenize)
+#     lastroot = -1
+#     lastlen = 0
+#     for i, deprel in enumerate(deprels):
+#         # dep.append(deprel[0])  # 依赖关系
+#         # governor.append(deprel[1])  # 起始节点  0 表示根节点
+#         # dependent.append(deprel[2])  # 终点节点
+#         assert len(deprel) >= 3, print(sentence, deprels)
+#         # print(deprel)
+#         # assert stanford_head[deprel[2] - 1] == 0, print(sentence, tokenize, tokenize_size, len(tokenize))
+#         # assert stanford_deprel[deprel[2] - 1] == 0 # 表明该位置还未填值。 目前发现分句存在错误
+#         if deprel[1] == 0:
+#             lastlen = i
+#             if lastroot != -1:
+#                 stanford_head[deprel[2] - 1 + lastlen] = lastroot
+#                 stanford_deprel[deprel[2] - 1 + lastlen] = "Next"
+#             else:
+#                 stanford_head[deprel[2] - 1] = deprel[1]
+#                 stanford_deprel[deprel[2] - 1] = deprel[0]
+#             lastroot = deprel[2] + lastlen
+#             continue
+#         if stanford_head[deprel[2] - 1] == -1:  # 表明该位置还未填值。 目前发现分句存在错误
+#             stanford_head[deprel[2] - 1] = deprel[1]
+#             stanford_deprel[deprel[2] - 1] = deprel[0]
+#         else:
+#             assert stanford_head[deprel[2] - 1 + lastlen] == -1
+#             stanford_head[deprel[2] - 1 + lastlen] = deprel[1] + lastlen
+#             stanford_deprel[deprel[2] - 1 + lastlen] = deprel[0]
+#     print(stanford_head)
+#     print(stanford_deprel)
+#
+#     return stanford_deprel, stanford_head
+def convertjson(data_file_name):
+    data=[]
+    with open(data_file_name, 'r', encoding='utf-8') as infile:
+        for line in infile.readlines():
+            line = json.loads(line)
+            data.append(line)
+    json.dump(data, open(data_file_name, "w"),ensure_ascii=False)
+# convertjson(dev_file_name)
+# convertjson(test_file_name)
 
 # 对原始数据进行token index 替换操作，获取句子依赖解析结果
 def init(data_file_name, rel2id, max_length=512, max_sen_length_init=200, max_sen_cnt_init=36, is_training=True,
@@ -107,8 +113,8 @@ def init(data_file_name, rel2id, max_length=512, max_sen_length_init=200, max_se
     :param suffix:
     :return:
     """
-    ori_data = json.load(open(data_file_name))
-
+    # ori_data = json.loads(open(data_file_name), encoding='UTF-8')
+    ori_data=[]
     Ma = 0
     Ma_e = 0
     data = []
@@ -116,92 +122,99 @@ def init(data_file_name, rel2id, max_length=512, max_sen_length_init=200, max_se
     max_document_len = 0
     max_sen_length = 0
     max_sen_cnt = 0
-    for i in range(len(ori_data)):
-        Ls = [0]
-        L = 0
-        for x in ori_data[i]['sents']:
-            L += len(x)
-            Ls.append(L)
-            if len(x) > max_sen_length:
-                max_sen_length = len(x)
-        if L > max_document_len:
-            max_document_len = L
-        if len(ori_data[i]['sents']) > max_sen_cnt:  # 统计文档最大句子个数
-            max_sen_cnt = len(ori_data[i]['sents'])
+    sen_tot=0
+    with open(data_file_name, 'r', encoding='utf-8') as infile:
+        for line in infile.readlines():
+            line = json.loads(line)
+            Ls = [0]
+            L = 0
 
-        vertexSet = ori_data[i]['vertexSet']
+            ori_data.append(line)
+            for x in line['sentences']:
+                L += len(x)
+                Ls.append(L)
+                if len(x) > max_sen_length:
+                    max_sen_length = len(x)
+            if L > max_document_len:
+                max_document_len = L
+            if len(line['sentences']) > max_sen_cnt:  # 统计文档最大句子个数
+                max_sen_cnt = len(line['sentences'])
+
+            entities = line['entities']
         # point position added with sent start position
-        for j in range(len(vertexSet)):
-            for k in range(len(vertexSet[j])):
-                vertexSet[j][k]['sent_id'] = int(vertexSet[j][k]['sent_id'])
+            for j in range(len(entities)):
+                # entities
+                id=entities[j]['id']
+                senId=[int(x.split("-")[0]) for x in entities[j]['pos']]
+                entities[j]['sent_id']=senId
+                entities[j]['s_pos']=[int(x.split("-")[-1] )for x in entities[j]['pos']]# s_pos表示句子级位置， pos是文档级位置
+                postotal=[]
+                for s,p in zip(senId,entities[j]['s_pos']):
+                    dl = Ls[s]
+                    postotal.append(p+dl)
+                entities[j]['pos']=postotal
 
-                sent_id = vertexSet[j][k]['sent_id']
-                dl = Ls[sent_id]
-                pos1 = vertexSet[j][k]['pos'][0]
-                pos2 = vertexSet[j][k]['pos'][1]
-                vertexSet[j][k]['pos'] = (pos1 + dl, pos2 + dl)
-                vertexSet[j][k]['s_pos'] = (pos1, pos2)  # s_pos表示句子级位置， pos是文档级位置
 
-        ori_data[i]['vertexSet'] = vertexSet
+            ori_data[sen_tot]['entities'] = entities
+            sen_tot += 1
+            item = {}
+            item['entities'] = entities
+            labels = line.get('lables', [])
 
-        item = {}
-        item['vertexSet'] = vertexSet
-        labels = ori_data[i].get('labels', [])
+            train_triple = set([])
+            new_labels = []
+            for label in labels:
+                rel = label['r']
+                assert (rel in rel2id)
+                label['r'] = rel2id[label['r']]
 
-        train_triple = set([])
-        new_labels = []
-        for label in labels:
-            rel = label['r']
-            assert (rel in rel2id)
-            label['r'] = rel2id[label['r']]
+                train_triple.add((label['p1'], label['p2']))
 
-            train_triple.add((label['h'], label['t']))
+                if suffix == '_train':
+                    # for n1 in entities[label['p1']]:
+                    #     for n2 in entities[label['p2']]:
+                    fact_in_dev_train.add((entities[label['p1']]['name'], entities[label['p1']]['name'], rel))  # annotated data
 
-            if suffix == '_train':
-                for n1 in vertexSet[label['h']]:
-                    for n2 in vertexSet[label['t']]:
-                        fact_in_dev_train.add((n1['name'], n2['name'], rel))  # annotated data
+                if is_training:
+                    # for n1 in entities[label['p1']]:
+                    #     for n2 in entities[label['p2']]:
+                    fact_in_dev_train.add((entities[label['p1']]['name'], entities[label['p1']]['name'], rel))  # distant data
 
-            if is_training:
-                for n1 in vertexSet[label['h']]:
-                    for n2 in vertexSet[label['t']]:
-                        fact_in_train.add((n1['name'], n2['name'], rel))  # distant data
+                else:
+                    # fix a bug here
+                    label['intrain'] = False
+                    label['indev_train'] = False
 
-            else:
-                # fix a bug here
-                label['intrain'] = False
-                label['indev_train'] = False
+                    # for n1 in entities[label['p1']]:
+                    #     for n2 in entities[label['p2']]:
+                    if (entities[label['p1']]['name'], entities[label['p1']]['name'], rel) in fact_in_train:
+                        label['intrain'] = True
 
-                for n1 in vertexSet[label['h']]:
-                    for n2 in vertexSet[label['t']]:
-                        if (n1['name'], n2['name'], rel) in fact_in_train:
-                            label['intrain'] = True
+                    if suffix == '_dev' or suffix == '_test':
+                        if (entities[label['p1']]['name'], entities[label['p1']]['name'], rel) in fact_in_dev_train:
+                            label['indev_train'] = True
 
-                        if suffix == '_dev' or suffix == '_test':
-                            if (n1['name'], n2['name'], rel) in fact_in_dev_train:
-                                label['indev_train'] = True
+                new_labels.append(label)
 
-            new_labels.append(label)
+            item['labels'] = new_labels
+            item['title'] = line['title']
 
-        item['labels'] = new_labels
-        item['title'] = ori_data[i]['title']
+            na_triple = []
+            for j in range(len(entities)):
+                for k in range(len(entities)):
+                    if (j != k):
+                        if (j, k) not in train_triple:
+                            na_triple.append((j, k))
 
-        na_triple = []
-        for j in range(len(vertexSet)):
-            for k in range(len(vertexSet)):
-                if (j != k):
-                    if (j, k) not in train_triple:
-                        na_triple.append((j, k))
+            item['na_triple'] = na_triple
+            item['Ls'] = Ls
+            item['sents'] = line['sentences']
+            data.append(item)
 
-        item['na_triple'] = na_triple
-        item['Ls'] = Ls
-        item['sents'] = ori_data[i]['sents']
-        data.append(item)
+            Ma = max(Ma, len(entities))
+            Ma_e = max(Ma_e, len(item['labels']))
 
-        Ma = max(Ma, len(vertexSet))
-        Ma_e = max(Ma_e, len(item['labels']))
-
-    print('data_len:', len(ori_data))
+    # print('data_len:', len(ori_data))
 
     # print ('Ma_V', Ma)
     # print ('Ma_e', Ma_e)
@@ -221,16 +234,18 @@ def init(data_file_name, rel2id, max_length=512, max_sen_length_init=200, max_se
     else:
         name_prefix = "dev"
 
-    json.dump(data, open(os.path.join(out_path, name_prefix + suffix + '.json'), "w"))
+    json.dump(data, open(os.path.join(out_path, name_prefix + suffix + '.json'), "w"),ensure_ascii=False)
 
     char2id = json.load(open(os.path.join(out_path, "char2id.json")))
     # id2char= {v:k for k,v in char2id.items()}
     # json.dump(id2char, open("data/id2char.json", "w"))
 
-    word2id = json.load(open(os.path.join(out_path, "word2id.json")))
-    ner2id = json.load(open(os.path.join(out_path, "ner2id.json")))
+    word2id = json.load(open(os.path.join(out_path, "baidubaike_word2id.json")))
+    word2id['PAD'] = len(word2id)  # 添加UNK和BLANK的id
+    word2id['UNK'] = len(word2id)
+    # ner2id = json.load(open(os.path.join(out_path, "ner2id.json")))
 
-    sen_tot = len(ori_data)
+    # sen_tot = len(ori_data)
     sen_word = np.zeros((sen_tot, max_length), dtype=np.int64)
     sen_pos = np.zeros((sen_tot, max_length), dtype=np.int64)
     sen_ner = np.zeros((sen_tot, max_length), dtype=np.int64)
@@ -240,7 +255,7 @@ def init(data_file_name, rel2id, max_length=512, max_sen_length_init=200, max_se
     sen_deprel = np.zeros((sen_tot, max_sen_cnt_init, max_sen_length_init), dtype=np.int64)
     sen_head = np.zeros((sen_tot, max_sen_cnt_init, max_sen_length_init), dtype=np.int64)
 
-    for i in range(len(ori_data)):
+    for i in range(sen_tot):
         print(i)
         # if i <= 236:
         #     continue
@@ -248,52 +263,11 @@ def init(data_file_name, rel2id, max_length=512, max_sen_length_init=200, max_se
 
         words = []
         tokenid = 0
-        for j, sent in enumerate(item['sents']):
+        for j, sent in enumerate(item['sentences']):
             words += sent
-            sentence = " ".join(sent)
-            for k, word in enumerate(sent):
-                if word == " ":
-                    sentence = sentence.replace("   ", " # ")
-                else:
-                    tokenize = nlp.word_tokenize(word)
-                    if len(tokenize) > 1:
-                        # print(tokenize)
-                        sentence = sentence.replace(word, tokenize[0])
-                    # elif word[-1] == "." and len(word) > 1:
-                    #     print(word)
-                    #     print(word[0:-1])
-                    #     sentence = sentence.replace(word, word[0:-1])
-
-                word = word.lower()
-                if word in word2id:
-                    sen_sentence_word[i][j][k] = word2id[word]
-                else:
-                    sen_sentence_word[i][j][k] = word2id['UNK']
-
-                sens_context_token_idxs[i][j][k] = tokenid
-                tokenid += 1
-            sentence = sentence.replace("\u00a0", "00a0").replace("\u20bd", "20bd")
-            if len(nlp.word_tokenize(sentence)) != len(sent):  # 该替换操作会带来错误
-                sentence = sentence.replace("No.", "No").replace("no.", "no").replace("V.", "V") \
-                    .replace("v.", "v").replace("m.", "m").replace("M.", "M").replace("U.S.", "U.S") \
-                    .replace("C.", "C").replace("c.", "c").replace("K.", "K").replace("6 1/2", "6 2")  ## 原始数据中分句存在错误
-            # 使得依赖树token分词结果 == split.(" ")
-            # sentence = sentence.replace("\u00a0", "00a0").replace("Trax!/TVT", "TraxTVT").\
-            #     replace("Canada-", "Canada").replace("1993\u20132000", "1993").replace("(;", "(").replace("BENS’", "BENS")\
-            #     .replace(".-", "-").replace("Enforcement’", "Enforcement")
-            deprel, head = stanford_deprel(sentence, len(sent))
-            assert j < max_sen_cnt
-            for k, ite in enumerate(deprel):
-                assert k < max_sen_length
-                if ite in deprel2id:
-                    sen_deprel[i][j][k] = deprel2id[ite]
-                else:
-                    sen_deprel[i][j][k] = deprel2id['UNK']
-            for k, ite in enumerate(head):
-                sen_head[i][j][k] = ite
 
         for j, word in enumerate(words):
-            word = word.lower()
+            # word = word.lower()
 
             if j < max_length:
                 if word in word2id:
@@ -301,32 +275,34 @@ def init(data_file_name, rel2id, max_length=512, max_sen_length_init=200, max_se
                 else:
                     sen_word[i][j] = word2id['UNK']
 
-            for c_idx, k in enumerate(list(word)):
-                if c_idx >= char_limit:
-                    break
-                sen_char[i, j, c_idx] = char2id.get(k, char2id['UNK'])
+            # for c_idx, k in enumerate(list(word)):
+            #     if c_idx >= char_limit:
+            #         break
+            #     # todo 将姓氏按char输入
+            #     sen_char[i, j, c_idx] = char2id.get(k, char2id['UNK'])
 
         for j in range(j + 1, max_length):
-            sen_word[i][j] = word2id['BLANK']
+            sen_word[i][j] = word2id['PAD']
 
-        vertexSet = item['vertexSet']
+        entities = item['entities']
 
-        for idx, vertex in enumerate(vertexSet, 1):
-            for v in vertex:
-                sen_pos[i][v['pos'][0]:v['pos'][1]] = idx
-                sen_ner[i][v['pos'][0]:v['pos'][1]] = ner2id[v['type']]
+        for idx, entity in enumerate(entities, 1):
+            for v in entity['pos']:
+                if v < max_length:
+                    sen_pos[i][v] = entity['id']
+                # sen_ner[i][v['pos'][0]:v['pos'][1]] = ner2id[v['type']]
 
     print("Finishing processing")
     np.save(os.path.join(out_path, name_prefix + suffix + '_word.npy'), sen_word)
     np.save(os.path.join(out_path, name_prefix + suffix + '_pos.npy'),
             sen_pos)  # the entity ids are mapped into vectors as the coreference embeddings
-    np.save(os.path.join(out_path, name_prefix + suffix + '_ner.npy'), sen_ner)
-    np.save(os.path.join(out_path, name_prefix + suffix + '_char.npy'), sen_char)
-    np.save(os.path.join(out_path, name_prefix + suffix + '_sen_sentence_word.npy'), sen_sentence_word)
-    np.save(os.path.join(out_path, name_prefix + suffix + '_sen_context_token_idxs.npy'), sens_context_token_idxs)
-    np.save(os.path.join(out_path, name_prefix + suffix + '_sen_deprel.npy'), sen_deprel)  # 句子单位的依赖树信息
-    np.save(os.path.join(out_path, name_prefix + suffix + '_sen_head.npy'), sen_head)
-    print("Finish saving")
+    # np.save(os.path.join(out_path, name_prefix + suffix + '_ner.npy'), sen_ner)
+    # np.save(os.path.join(out_path, name_prefix + suffix + '_char.npy'), sen_char)
+    # np.save(os.path.join(out_path, name_prefix + suffix + '_sen_sentence_word.npy'), sen_sentence_word)
+    # np.save(os.path.join(out_path, name_prefix + suffix + '_sen_context_token_idxs.npy'), sens_context_token_idxs)
+    # np.save(os.path.join(out_path, name_prefix + suffix + '_sen_deprel.npy'), sen_deprel)  # 句子单位的依赖树信息
+    # np.save(os.path.join(out_path, name_prefix + suffix + '_sen_head.npy'), sen_head)
+    # print("Finish saving")
 
 
 # 在token序列中将实体替换成实体id
@@ -552,18 +528,18 @@ def get_entity_graph_adj(is_training=True, suffix='', max_entity_mention_init=90
 
 try:
     # init(train_distant_file_name, rel2id, max_length=512, is_training=True, suffix='')
-    # init(train_annotated_file_name, rel2id, max_length=512, is_training=False, suffix='_train')
-    # init(dev_file_name, rel2id, max_length=512, is_training=False, suffix='_dev')
-    # init(test_file_name, rel2id, max_length=512, is_training=False, suffix='_test')
+    init(train_annotated_file_name, rel2id, max_length=512, is_training=False, suffix='_train')
+    init(dev_file_name, rel2id, max_length=512, is_training=False, suffix='_dev')
+    init(test_file_name, rel2id, max_length=512, is_training=False, suffix='_test')
     # get_sen_word_entity(is_training=False, suffix='_train')
     # get_sen_word_entity(is_training=False, suffix='_dev')
     # get_sen_word_entity(is_training=False, suffix='_test')
     # get_dep_graph_adj(is_training=False, suffix='_train')
     # get_dep_graph_adj(is_training=False, suffix='_dev')
     # get_dep_graph_adj(is_training=False, suffix='_test')
-    get_entity_graph_adj(is_training=False, suffix='_train')
-    get_entity_graph_adj(is_training=False, suffix='_dev')
-    get_entity_graph_adj(is_training=False, suffix='_test')
+    # get_entity_graph_adj(is_training=False, suffix='_train')
+    # get_entity_graph_adj(is_training=False, suffix='_dev')
+    # get_entity_graph_adj(is_training=False, suffix='_test')
     # stanford_deprel("Hall returned to the ship from an exploratory sledging journey , and promptly fell ill . Before he died , he accused members of the crew of poisoning him .", 30)
     # stanford_deprel("Kungliga Hovkapellet ( the Royal Court Orchestra) is a Swedish orchestra, originally part of the Royal Court in Sweden's capital Stockholm. ", 100)
     # stanford_deprel("The orchestra originally consisted of both musicians and singers. ", 100)
@@ -575,8 +551,8 @@ except Exception as e:
     # nlp.close()
     print(e)
     raise
-finally:
-    nlp.close()
+# finally:
+    # nlp.close()
 
 # 监督场景下
 # 训练集 dev_train ==》 train_annotated.json  #Doc=3053 #Rel=96 #Inst=38269  #Fact=34715

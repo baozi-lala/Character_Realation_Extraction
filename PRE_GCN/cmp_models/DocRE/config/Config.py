@@ -14,7 +14,7 @@ import matplotlib
 import random
 from collections import defaultdict
 import torch.nn.functional as F
-
+import numpy as np
 IGNORE_INDEX = -100
 is_transformer = False
 
@@ -56,11 +56,11 @@ class Config(object):
         self.max_sen_length = 200  # 最大句子长度
         self.pos_num = 2 * self.max_length
         self.entity_num = self.max_length
-        self.relation_num = 97
-
-        self.coref_size = 20
-        self.entity_type_size = 20
-        self.max_epoch = 86
+        self.relation_num = 17 # 关系个数
+        self.word_dim = 300  # 词嵌入
+        # self.coref_size = 20
+        # self.entity_type_size = 20
+        self.max_epoch = 50
         self.opt_method = 'Adam'
         self.optimizer = None
 
@@ -87,7 +87,7 @@ class Config(object):
         self.period = 50
         self.prune_k = -1
 
-        self.batch_size = 4
+        self.batch_size = 8
         self.h_t_limit = 1800
         self.pooling = "mean"
 
@@ -112,6 +112,12 @@ class Config(object):
 
         if not os.path.exists("log"):
             os.mkdir("log")
+        # 把索引和词向量对应起来
+        self.data_word_vec = np.load(os.path.join(self.data_path, 'vec.npy'))
+        self.data_word_vec = np.concatenate(
+            (self.data_word_vec, np.asarray(np.random.normal(size=300, loc=0, scale=0.05), 'f').reshape(1, 300)))
+        self.data_word_vec = np.concatenate(
+            (self.data_word_vec, np.asarray(np.random.normal(size=300, loc=0, scale=0.05), 'f').reshape(1, 300)))
 
     def set_data_path(self, data_path):
         self.data_path = data_path
@@ -161,24 +167,42 @@ class Config(object):
 
     def set_epoch_range(self, epoch_range):
         self.epoch_range = epoch_range
+    def load_doc_embeds(self, word_id):
+        """
+        Args:
+            weights: (dict) keys are words, values are vectors
+            mapping: (dict) keys are words, values are unique ids
+            trainable: (bool)
 
+        Returns: updates the embedding matrix with pre-trained embeddings
+        """
+        # if self.freeze:
+
+        pret_embeds = []
+        # else:
+        # pret_embeds = nn.init.normal_(torch.empty((self.num_embeddings, self.embedding_dim)))
+        for word in word_id:
+            pret_embeds.append(self.data_word_vec[word.cpu().data.numpy()])
+        return np.asarray(pret_embeds)
     def load_train_data(self):
         print("Reading training data...")
         prefix = self.train_prefix
 
         print('train', prefix)
+
         self.data_train_word = np.load(os.path.join(self.data_path, prefix + '_word.npy'))  # word embedding
+        # self.data_train_word=self.load_doc_embeds(self.data_train_word_id)
         self.data_train_pos = np.load(os.path.join(self.data_path, prefix + '_pos.npy')) # pos [sp, ep)
-        self.data_train_ner = np.load(os.path.join(self.data_path, prefix + '_ner.npy'))  # entity type embedding
+        # self.data_train_ner = np.load(os.path.join(self.data_path, prefix + '_ner.npy'))  # entity type embedding
         self.train_file = json.load(open(os.path.join(self.data_path, prefix + '.json')))
 
-        self.data_train_bert_word = np.load(os.path.join(self.data_path, prefix + '_bert_word.npy'))
-        self.data_train_bert_mask = np.load(os.path.join(self.data_path, prefix + '_bert_mask.npy'))
-        self.data_train_bert_starts = np.load(os.path.join(self.data_path, prefix + '_bert_starts.npy'))
+        # self.data_train_bert_word = np.load(os.path.join(self.data_path, prefix + '_bert_word.npy'))
+        # self.data_train_bert_mask = np.load(os.path.join(self.data_path, prefix + '_bert_mask.npy'))
+        # self.data_train_bert_starts = np.load(os.path.join(self.data_path, prefix + '_bert_starts.npy'))
 
         print(self.data_train_word.shape)
         print(self.data_train_pos.shape)
-        print(self.data_train_bert_starts.shape)
+        # print(self.data_train_bert_starts.shape)
 
         print("Finish reading")
 
@@ -192,7 +216,6 @@ class Config(object):
 
     def load_test_data(self):
         print("Reading testing data...")
-        self.data_word_vec = np.load(os.path.join(self.data_path, 'vec.npy'))
         self.rel2id = json.load(open(os.path.join(self.data_path, 'rel2id.json')))
         self.id2rel = {v: k for k, v in self.rel2id.items()}
 
@@ -200,13 +223,14 @@ class Config(object):
         print(prefix)
         self.is_test = ('dev_test' == prefix)
         self.data_test_word = np.load(os.path.join(self.data_path, prefix + '_word.npy'))
+        # self.data_test_word = self.load_doc_embeds(self.data_test_word_id)
         self.data_test_pos = np.load(os.path.join(self.data_path, prefix + '_pos.npy'))
-        self.data_test_ner = np.load(os.path.join(self.data_path, prefix + '_ner.npy'))
+        # self.data_test_ner = np.load(os.path.join(self.data_path, prefix + '_ner.npy'))
         self.test_file = json.load(open(os.path.join(self.data_path, prefix + '.json')))
 
-        self.data_test_bert_word = np.load(os.path.join(self.data_path, prefix + '_bert_word.npy'))
-        self.data_test_bert_mask = np.load(os.path.join(self.data_path, prefix + '_bert_mask.npy'))
-        self.data_test_bert_starts = np.load(os.path.join(self.data_path, prefix + '_bert_starts.npy'))
+        # self.data_test_bert_word = np.load(os.path.join(self.data_path, prefix + '_bert_word.npy'))
+        # self.data_test_bert_mask = np.load(os.path.join(self.data_path, prefix + '_bert_mask.npy'))
+        # self.data_test_bert_starts = np.load(os.path.join(self.data_path, prefix + '_bert_starts.npy'))
 
         self.test_len = self.data_test_word.shape[0]
         assert (self.test_len == len(self.test_file))
@@ -267,10 +291,10 @@ class Config(object):
                     context_idxs[i].copy_(torch.from_numpy(self.data_train_word[index, :]))
 
                 context_pos[i].copy_(torch.from_numpy(self.data_train_pos[index, :]))
-                context_ner[i].copy_(torch.from_numpy(self.data_train_ner[index, :]))
-
-                context_masks[i].copy_(torch.from_numpy(self.data_train_bert_mask[index, :]))
-                context_starts[i].copy_(torch.from_numpy(self.data_train_bert_starts[index, :]))
+                # context_ner[i].copy_(torch.from_numpy(self.data_train_ner[index, :]))
+                #
+                # context_masks[i].copy_(torch.from_numpy(self.data_train_bert_mask[index, :]))
+                # context_starts[i].copy_(torch.from_numpy(self.data_train_bert_starts[index, :]))
 
                 for j in range(self.max_length):
                     if self.data_train_word[index, j] == 0:
@@ -282,34 +306,38 @@ class Config(object):
                 idx2label = defaultdict(list)
 
                 for label in labels:
-                    idx2label[(label['h'], label['t'])].append(label['r'])
+                    idx2label[(label['p1'], label['p2'])].append(label['r'])
 
                 train_tripe = list(idx2label.keys())
                 for j, (h_idx, t_idx) in enumerate(train_tripe):  # j 表示文档第j个entity pair
-                    hlist = ins['vertexSet'][h_idx]
-                    tlist = ins['vertexSet'][t_idx]
+                    hlist = ins['entities'][h_idx]
+                    tlist = ins['entities'][t_idx]
 
-                    for h in hlist:
-                        h_mapping[i, j, h['pos'][0]:h['pos'][1]] = 1.0 / len(hlist) / (
-                                    h['pos'][1] - h['pos'][0])  # h_mapping 计算得到了entity mention embedding的系数
+                    for h in hlist['pos']:
+                        if h<self.max_length:
+                            h_mapping[i, j, h] = 1.0 / len(hlist['pos'])  # h_mapping 计算得到了entity mention embedding的系数，对于中文可以不考虑系数，为1
 
-                    for t in tlist:
-                        t_mapping[i, j, t['pos'][0]:t['pos'][1]] = 1.0 / len(tlist) / (t['pos'][1] - t['pos'][0])
+                    for t in tlist['pos']:
+                        if t<self.max_length:
+
+                            t_mapping[i, j, t] = 1.0 / len(tlist['pos'])
 
                     label = idx2label[(h_idx, t_idx)]
 
-                    delta_dis = hlist[0]['pos'][0] - tlist[0]['pos'][0]
-                    if delta_dis < 0:
+                    delta_dis = hlist['pos'][0] - tlist['pos'][0]
+                    if abs(delta_dis) >511:
+                        ht_pair_pos[i, j] = int(self.dis2idx[511])
+                    elif delta_dis < 0:
                         ht_pair_pos[i, j] = -int(self.dis2idx[-delta_dis])  ## are the relative distances of the first mentions of the two entities in the document
                     else:
                         ht_pair_pos[i, j] = int(self.dis2idx[delta_dis])
 
                     for r in label:
                         relation_multi_label[i, j, r] = 1
-
+                    # 第i个文档的第j个实体对
                     relation_mask[i, j] = 1
                     rt = np.random.randint(len(label))
-                    relation_label[i, j] = label[rt]  # 当训练集中统一实体对有多个标签时，随机取一个进行训练
+                    relation_label[i, j] = label[rt]  # 当训练集中统一实体对有多个标签时，随机取一个进行训练，其实只有一个
 
                 lower_bound = len(ins['na_triple'])
                 # random.shuffle(ins['na_triple'])
@@ -321,20 +349,24 @@ class Config(object):
                 # for j, (h_idx, t_idx) in enumerate(sel_ins, len(train_tripe)):
                 #     if j == self.h_t_limit:
                 #         break
-                    hlist = ins['vertexSet'][h_idx]
-                    tlist = ins['vertexSet'][t_idx]
+                    hlist = ins['entities'][h_idx]
+                    tlist = ins['entities'][t_idx]
 
-                    for h in hlist:
-                        h_mapping[i, j, h['pos'][0]:h['pos'][1]] = 1.0 / len(hlist) / (h['pos'][1] - h['pos'][0])
+                    for h in hlist['pos']:
+                        if h<self.max_length:
+                            h_mapping[i, j, h] = 1.0 / len(hlist['pos'])
 
-                    for t in tlist:
-                        t_mapping[i, j, t['pos'][0]:t['pos'][1]] = 1.0 / len(tlist) / (t['pos'][1] - t['pos'][0])
+                    for t in tlist['pos']:
+                        if t<self.max_length:
+                            t_mapping[i, j, t] = 1.0 / len(tlist['pos'])
 
                     relation_multi_label[i, j, 0] = 1
                     relation_label[i, j] = 0
                     relation_mask[i, j] = 1
-                    delta_dis = hlist[0]['pos'][0] - tlist[0]['pos'][0]
-                    if delta_dis < 0:
+                    delta_dis = hlist['pos'][0] - tlist['pos'][0]
+                    if abs(delta_dis) >511:
+                        ht_pair_pos[i, j] = int(self.dis2idx[511])
+                    elif delta_dis < 0:
                         ht_pair_pos[i, j] = -int(self.dis2idx[-delta_dis])
                     else:
                         ht_pair_pos[i, j] = int(self.dis2idx[delta_dis])
@@ -401,18 +433,18 @@ class Config(object):
                 else:
                     context_idxs[i].copy_(torch.from_numpy(self.data_test_word[index, :]))
                 context_pos[i].copy_(torch.from_numpy(self.data_test_pos[index, :]))
-                context_ner[i].copy_(torch.from_numpy(self.data_test_ner[index, :]))
-
-                context_masks[i].copy_(torch.from_numpy(self.data_test_bert_mask[index, :]))
-                context_starts[i].copy_(torch.from_numpy(self.data_test_bert_starts[index, :]))
+                # context_ner[i].copy_(torch.from_numpy(self.data_test_ner[index, :]))
+                #
+                # context_masks[i].copy_(torch.from_numpy(self.data_test_bert_mask[index, :]))
+                # context_starts[i].copy_(torch.from_numpy(self.data_test_bert_starts[index, :]))
 
                 idx2label = defaultdict(list)
                 ins = self.test_file[index]
 
                 for label in ins['labels']:
-                    idx2label[(label['h'], label['t'])].append(label['r'])
+                    idx2label[(label['p1'], label['p2'])].append(label['r'])
 
-                L = len(ins['vertexSet'])
+                L = len(ins['entities'])
                 titles.append(ins['title'])
 
                 j = 0
@@ -420,39 +452,41 @@ class Config(object):
                 for h_idx in range(L):
                     for t_idx in range(L):
                         if h_idx != t_idx:
-                            hlist = ins['vertexSet'][h_idx]
-                            tlist = ins['vertexSet'][t_idx]
+                            hlist = ins['entities'][h_idx]
+                            tlist = ins['entities'][t_idx]
 
-                            for h in hlist:
-                                h_mapping[i, j, h['pos'][0]:h['pos'][1]] = 1.0 / len(hlist) / (
-                                        h['pos'][1] - h['pos'][0])
-                            for t in tlist:
-                                t_mapping[i, j, t['pos'][0]:t['pos'][1]] = 1.0 / len(tlist) / (
-                                        t['pos'][1] - t['pos'][0])
+                            for h in hlist['pos']:
+                                if h < self.max_length:
+                                    h_mapping[i, j, h] = 1.0 / len(hlist['pos'])
+                            for t in tlist['pos']:
+                                if t < self.max_length:
+                                    t_mapping[i, j, t] = 1.0 / len(tlist['pos'])
 
                             relation_mask[i, j] = 1
 
-                            delta_dis = hlist[0]['pos'][0] - tlist[0]['pos'][0]
-                            if delta_dis < 0:
+                            delta_dis = hlist['pos'][0] - tlist['pos'][0]
+                            if abs(delta_dis) > 511:
+                                ht_pair_pos[i, j] = int(self.dis2idx[511])
+                            elif delta_dis < 0:
                                 ht_pair_pos[i, j] = -int(self.dis2idx[-delta_dis])
                             else:
                                 ht_pair_pos[i, j] = int(self.dis2idx[delta_dis])
                             j += 1
 
                             # 计算实体对之间最短句子距离
-                            hlist = ins['vertexSet'][h_idx]
-                            tlist = ins['vertexSet'][t_idx]
+                            hlist = ins['entities'][h_idx]
+                            tlist = ins['entities'][t_idx]
                             dist = 10000
-                            for h in hlist:
-                                for t in tlist:
-                                    dist = min(dist, abs(h['sent_id'] - t['sent_id']))
+                            for h in hlist['sent_id']:
+                                for t in tlist['sent_id']:
+                                    dist = min(dist, abs(h - t))
                             h_t_dist[(h_idx, t_idx)] = dist
 
 
                 max_h_t_cnt = max(max_h_t_cnt, j)
                 label_set = {}
                 for label in ins['labels']:
-                    label_set[(label['h'], label['t'], label['r'])] = label['indev_train']
+                    label_set[(label['p1'], label['p2'], label['r'])] = label['indev_train']
 
                 labels.append(label_set)
                 h_t_dists.append(h_t_dist)
@@ -550,9 +584,10 @@ class Config(object):
 
                 dis_h_2_t = ht_pair_pos + 10
                 dis_t_2_h = -ht_pair_pos + 10
+                context_vector=self.load_doc_embeds(context_idxs)
 
-                predict_re = model(context_idxs, context_pos, context_ner, None, input_lengths, h_mapping,
-                                   t_mapping, relation_mask, dis_h_2_t, dis_t_2_h, None, None, context_masks, context_starts)  ## batch_size * mutl_h_t_pair*relation_size    一个实例是一个文档，同时预测一个文档多个entity pair的关系
+                predict_re = model(context_vector, context_pos, context_ner, None, input_lengths, h_mapping,
+                                   t_mapping, relation_mask, dis_h_2_t, dis_t_2_h, context_masks, context_starts)  ## batch_size * mutl_h_t_pair*relation_size    一个实例是一个文档，同时预测一个文档多个entity pair的关系
                 loss = torch.sum(BCE(predict_re, relation_multi_label) * relation_mask.unsqueeze(2)) / (
                         self.relation_num * torch.sum(relation_mask))
 
@@ -659,9 +694,9 @@ class Config(object):
 
                 dis_h_2_t = ht_pair_pos + 10
                 dis_t_2_h = -ht_pair_pos + 10
-
-                predict_re = model(context_idxs, context_pos, context_ner, None, input_lengths,
-                                   h_mapping, t_mapping, relation_mask, dis_h_2_t, dis_t_2_h, None, None, context_masks, context_starts)
+                context_vector=self.load_doc_embeds(context_idxs)
+                predict_re = model(context_vector, context_pos, context_ner, None, input_lengths,
+                                   h_mapping, t_mapping, relation_mask, dis_h_2_t, dis_t_2_h, context_masks, context_starts)
 
                 predict_re = torch.sigmoid(predict_re)
 

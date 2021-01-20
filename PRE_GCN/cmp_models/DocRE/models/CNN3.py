@@ -6,20 +6,22 @@ class CNN3(nn.Module):
     def __init__(self, config):
         super(CNN3, self).__init__()
         self.config = config
-        self.word_emb = nn.Embedding(config.data_word_vec.shape[0], config.data_word_vec.shape[1])
-        self.word_emb.weight.data.copy_(torch.from_numpy(config.data_word_vec))
-        self.word_emb.weight.requires_grad = False
+        # self.word_emb = nn.Embedding(config.data_word_vec.shape[0], config.data_word_vec.shape[1])
+        # self.word_emb.weight.data.copy_(torch.from_numpy(config.data_word_vec))
+        # self.word_emb.weight.requires_grad = False
 
         # self.char_emb = nn.Embedding(config.data_char_vec.shape[0], config.data_char_vec.shape[1])
         # self.char_emb.weight.data.copy_(torch.from_numpy(config.data_char_vec))
         # char_dim = config.data_char_vec.shape[1]
         # char_hidden = 100
         # self.char_cnn = nn.Conv1d(char_dim,  char_hidden, 5)
+        self.use_entity_type = False
+        self.use_coreference = False
+        self.use_distance = True
+        # self.coref_embed = nn.Embedding(config.max_length, config.coref_size, padding_idx=0)
+        # self.ner_emb = nn.Embedding(7, config.entity_type_size, padding_idx=0)
 
-        self.coref_embed = nn.Embedding(config.max_length, config.coref_size, padding_idx=0)
-        self.ner_emb = nn.Embedding(7, config.entity_type_size, padding_idx=0)
-
-        input_size = config.data_word_vec.shape[1] + config.coref_size + config.entity_type_size  # + char_hidden
+        input_size = config.data_word_vec.shape[1] # + char_hidden
 
         self.out_channels = 200
         self.in_channels = input_size
@@ -47,7 +49,7 @@ class CNN3(nn.Module):
         # context_ch = self.char_emb(context_char_idxs.contiguous().view(-1, char_size)).view(bsz * para_size, char_size, -1)
         # context_ch = self.char_cnn(context_ch.permute(0, 2, 1).contiguous()).max(dim=-1)[0].view(bsz, para_size, -1)
 
-        sent = torch.cat([self.word_emb(context_idxs), self.coref_embed(pos), self.ner_emb(context_ner)], dim=-1)
+        sent = torch.from_numpy(context_idxs).cuda()
 
         sent = sent.permute(0, 2, 1)
 

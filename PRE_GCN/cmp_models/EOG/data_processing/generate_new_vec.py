@@ -27,13 +27,13 @@ def get_glove_vec(glove_path):
     return vec
 
 if __name__ == '__main__':
-    train_voc = get_docred_voc('../data/DocRED/train_annotated.json')
+    train_voc = get_docred_voc('../data/DocPRE/train_annotated.json')
     print("train_voc len = ", len(train_voc))
 
-    test_voc = get_docred_voc('../data/DocRED/test.json')
+    test_voc = get_docred_voc('../data/DocPRE/test.json')
     print("test_voc len = ", len(test_voc))
 
-    dev_voc = get_docred_voc('../data/DocRED/dev.json')
+    dev_voc = get_docred_voc('../data/DocPRE/dev.json')
     print("dev_voc len = ", len(dev_voc))
 
     data_voc = set()
@@ -66,7 +66,7 @@ if __name__ == '__main__':
         if (w in words) or (w in words_lower):
             new_embeds[w] = glove_vec[w]
 
-    with open('../data/DocRED/glove_300d.txt', 'w', encoding="utf-8") as outfile:
+    with open('../data/DocPRE/glove_300d.txt', 'w', encoding="utf-8") as outfile:
         for g in new_embeds.keys():
             outfile.write('{} {}\n'.format(g, ' '.join(map(str, list(new_embeds[g])))))
     print('Done')

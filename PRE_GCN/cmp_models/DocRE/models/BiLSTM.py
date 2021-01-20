@@ -17,12 +17,12 @@ class BiLSTM(nn.Module):
         self.config = config
 
         word_vec_size = config.data_word_vec.shape[0]
-        self.word_emb = nn.Embedding(word_vec_size, config.data_word_vec.shape[1])
-        self.word_emb.weight.data.copy_(torch.from_numpy(config.data_word_vec))
-
-        self.word_emb.weight.requires_grad = False
-        self.use_entity_type = True
-        self.use_coreference = True
+        # self.word_emb = nn.Embedding(word_vec_size, config.data_word_vec.shape[1])
+        # self.word_emb.weight.data.copy_(torch.from_numpy(config.data_word_vec))
+        #
+        # self.word_emb.weight.requires_grad = False
+        self.use_entity_type = False
+        self.use_coreference = False
         self.use_distance = True
 
         # performance is similar with char_embed
@@ -62,7 +62,7 @@ class BiLSTM(nn.Module):
         # context_ch = self.char_emb(context_char_idxs.contiguous().view(-1, char_size)).view(bsz * para_size, char_size, -1)
         # context_ch = self.char_cnn(context_ch.permute(0, 2, 1).contiguous()).max(dim=-1)[0].view(bsz, para_size, -1)
 
-        sent = self.word_emb(context_idxs)
+        sent = torch.from_numpy(context_idxs).cuda()
         if self.use_coreference:
             sent = torch.cat([sent, self.entity_embed(pos)], dim=-1)
 

@@ -6,7 +6,7 @@ import os
 
 word2id = {"UNK": 1, "BLANK": 0}
 wordid = 2
-with open('../data/DocRED/glove_300d.txt', 'r', encoding='utf-8') as f:
+with open('../data/DocPRE/glove_300d.txt', 'r', encoding='utf-8') as f:
     for x, line in enumerate(f):
 
         if x == 0 and len(line.split()) == 2:
@@ -17,12 +17,12 @@ with open('../data/DocRED/glove_300d.txt', 'r', encoding='utf-8') as f:
             if word not in word2id:
                 word2id[word] = wordid
                 wordid+=1
-with open('../data/DocRED/processed/word2id.json','w', encoding="utf-8") as outfile:
+with open('../data/DocPRE/processed/word2id.json', 'w', encoding="utf-8") as outfile:
     json.dump(word2id,outfile,ensure_ascii=False)
 
 # nlp = StanfordCoreNLP(r'/home/dfwang/stanford-corenlp-full-2018-10-05', memory='8g')
 # max_length = 800  # 最大文档长度668
-# deprel2id = json.load(open("../data/DocRED/deprel2id.json", encoding="utf-8"))
+# deprel2id = json.load(open("../data/DocPRE/deprel2id.json", encoding="utf-8"))
 #
 # ner2id = {}
 # nerid = 0
@@ -73,7 +73,7 @@ with open('../data/DocRED/processed/word2id.json','w', encoding="utf-8") as outf
 #     global max_len
 #     global relid, nerid, rel2id, ner2id
 #     with open(input_file, 'r', encoding='utf-8') as infile:
-#         print("输入数据文件为", input_file, "DocRED" in input_file)
+#         print("输入数据文件为", input_file, "DocPRE" in input_file)
 #         split_n = '|'
 #         for line in infile:
 #             doc_id+=1

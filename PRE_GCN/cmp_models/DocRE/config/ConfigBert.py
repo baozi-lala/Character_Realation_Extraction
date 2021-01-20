@@ -141,7 +141,7 @@ class ConfigBert(object):
         print ('train', prefix)
         self.data_train_word = np.load(os.path.join(self.data_path, prefix+'_word.npy'))
         self.data_train_pos = np.load(os.path.join(self.data_path, prefix+'_pos.npy'))
-        self.data_train_ner = np.load(os.path.join(self.data_path, prefix+'_ner.npy'))
+        # self.data_train_ner = np.load(os.path.join(self.data_path, prefix+'_ner.npy'))
         # self.data_train_char = np.load(os.path.join(self.data_path, prefix+'_char.npy'))
         self.train_file = json.load(open(os.path.join(self.data_path, prefix+'.json')))
 
@@ -171,7 +171,7 @@ class ConfigBert(object):
         self.is_test = ('dev_test' == prefix)
         self.data_test_word = np.load(os.path.join(self.data_path, prefix+'_word.npy'))
         self.data_test_pos = np.load(os.path.join(self.data_path, prefix+'_pos.npy'))
-        self.data_test_ner = np.load(os.path.join(self.data_path, prefix+'_ner.npy'))
+        # self.data_test_ner = np.load(os.path.join(self.data_path, prefix+'_ner.npy'))
         # self.data_test_char = np.load(os.path.join(self.data_path, prefix+'_char.npy'))
         self.test_file = json.load(open(os.path.join(self.data_path, prefix+'.json')))
 

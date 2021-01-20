@@ -39,8 +39,8 @@ init_train_epochs: 1
 
 # data based
 dep_adj_no_split: true
-train_data: ../data/DocRED/processed/train+dev.data   # best epoch 105  input_theta 0.7794
-test_data: ../data/DocRED/processed/dev.data
+train_data: ../data/DocPRE/processed/train+dev.data   # best epoch 105  input_theta 0.7794
+test_data: ../data/DocPRE/processed/dev.data
 embeds: true
 folder: ../results/docred-dev
 save_pred: dev
