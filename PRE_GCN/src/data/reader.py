@@ -130,7 +130,8 @@ def read(input_file, documents, entities, relations,word2index,intrain):
                         name_id=-1
 
                     entities[pmid][id] = EntityInfo(p['id'], name_id, senId, pos, postotal)
-                    entities_dist.append((id, min([int(a) for a in pos.split(':')])))
+                    # 应该算在文档中的pos，也就是全局pos
+                    entities_dist.append((id, min([int(a) for a in postotal.split(':')])))
             for label in line['lables']:
                 entity_pair_dis = get_distance(entities[pmid][str(label['p1'])].sentNo,
                                                entities[pmid][str(label['p2'])].sentNo)
@@ -142,6 +143,7 @@ def read(input_file, documents, entities, relations,word2index,intrain):
                     relations[pmid][(str(label['p1']), str(label['p2']))].append(PairInfo(label['r'],entity_pair_dis, intrain))
             entities_dist.sort(key=lambda x: x[1], reverse=False)
             entities_cor_id[pmid] = {}
+            # 实体出现的顺序
             for coref_id, key in enumerate(entities_dist):
                 entities_cor_id[pmid][key[0]] = coref_id + 1
             # assert len(relations[pmid]) == allp

@@ -47,18 +47,18 @@ def write_errors(preds, info, ofile, map_=None, type="max"):
 
             for k, j in zip(p, i):
                 if k[0] not in j['rel']:
-                    outfile.write('Prediction: {} \t Score: {}\t Truth: {} \n'.format(map_[k[0]], k[1],  "-".join([map_[rel] for rel in j['rel']])))
+                    outfile.write('Prediction: {} \t Score: {}\t Truth: {} \t Type: {} \n'.format(map_[k[0]], k[1],  "-".join([map_[rel] for rel in j['rel']]), j['cross']))
                     doc = [it for items in j['doc'] for it in items]
                     outfile.write('{}\n{}\n'.format(j['pmid'], ' '.join(doc)))
 
-                    gg1 = ' | '.join([' '.join(doc[int(m1)]) for m1 in
-                                      j['entA'].pos.split(':')])
-                    gg2 = ' | '.join([' '.join(doc[int(m1)]) for m1 in
-                                      j['entB'].postotal.split(':')])
+                    # gg1 = ' | '.join([' '.join(doc[int(m1)]) for m1 in
+                    #                   j['entA'].postotal.split(':')])
+                    # gg2 = ' | '.join([' '.join(doc[int(m1)]) for m1 in
+                    #                   j['entB'].postotal.split(':')])
 
-                    outfile.write('Arg1: {} | {}\n'.format(j['entA'].id, gg1))
-                    outfile.write('Arg2: {} | {}\n'.format(j['entB'].id, gg2))
-                    # outfile.write('Distance: {}\n'.format(solve(j['sentA'].split(':'), j['sentB'].split(':'))))
+                    outfile.write('Arg1: {} | {}\n'.format(j['entA'].id, doc[int(j['entA'].postotal.split(':')[0])]))
+                    outfile.write('Arg2: {} | {}\n'.format(j['entB'].id, doc[int(j['entB'].postotal.split(':')[0])]))
+                    outfile.write('Distance: {}\n'.format(solve(j['sentA'].split(':'), j['sentB'].split(':'))))
                     outfile.write('\n')
     print('DONE')
 
@@ -77,7 +77,7 @@ def write_preds_old(preds, info, ofile, map_=None):
                     pass
                 else:
                     outfile.write('{}\n'.format('|'.join([j['pmid'].split('__')[0],
-                                                          j['entA'].id, j['entB'].id,
+                                                          j['entA'].id, j['entB'].id, str(j['cross']),
                                                           str(solve(j['sentA'].split(':'), j['sentB'].split(':'))),
                                                           map_[k], "##".join([map_[rel] for rel in list(j['rel'])])])))
     print('DONE')
@@ -100,7 +100,7 @@ def write_preds(preds, info, ofile, map_=None):
                     # print(map_)
 
                     outfile.write('{}\n'.format('|'.join([str(j['pmid'].split('__')[0]),
-                                                          str(j['entA'].id), str(j['entB'].id),
+                                                          str(j['entA'].id), str(j['entB'].id),str(j['cross']),
                                                           str(solve(j['sentA'].split(':'), j['sentB'].split(':'))),
                                                           str(map_[k[0]]), "##".join([map_[rel] for rel in list(j['rel'])])])))
     print('DONE')
@@ -115,17 +115,18 @@ def plot_learning_curve(trainer, model_folder):
         model_folder (str): folder to save figures
     """
     x = list(map(int, np.arange(len(trainer.train_res['loss']))))
+    x1 = list(map(int, np.arange(len(trainer.train_res['loss'])-len(trainer.test_res['loss']),len(trainer.train_res['loss']))))
     fig = plt.figure()
     plt.subplot(2, 1, 1)
     plt.plot(x, trainer.train_res['loss'], 'b', label='train')
-    plt.plot(x, trainer.test_res['loss'], 'g', label='test')
+    plt.plot(x1, trainer.test_res['loss'], 'g', label='test')
     plt.legend()
     plt.ylabel('Loss')
     plt.yticks(np.arange(0, 1, 0.1))
 
     plt.subplot(2, 1, 2)
     plt.plot(x, trainer.train_res['score'], 'b', label='train')
-    plt.plot(x, trainer.test_res['score'], 'g', label='test')
+    plt.plot(x1, trainer.test_res['score'], 'g', label='test')
     plt.legend()
     plt.ylabel('F1-score')
     plt.xlabel('Epochs')
@@ -261,7 +262,7 @@ def load_model(model_folder, trainer):
 
 
 def load_mappings(model_folder):
-    with open(os.path.join(model_folder, 'mappings.pkl'), 'rb',encoding="utf-8") as f:
+    with open(os.path.join(model_folder, 'mappings.pkl'), 'rb') as f:
         loader = pkl.load(f)
     return loader
 
@@ -304,25 +305,20 @@ def print_options(params):
     print("Parameters:")
     for key, value in params.items():
         print("\t - %s\t %s" % (key, value))
+def plot_P_R(trainer, model_folder):
+    """
+    Plot the learning curves for training and test set (loss and primary score measure)
 
-def get_max_lengths(data_path):
-    word_length_list = []
-    sent_length_list = []
-    with open(data_path) as csv_file:
-        reader = csv.reader(csv_file, quotechar='"')
-        for idx, line in enumerate(reader):
-            text = ""
-            for tx in line[1:]:
-                text += tx.lower()
-                text += " "
-            sent_list = sent_tokenize(text)
-            sent_length_list.append(len(sent_list))
-
-            for sent in sent_list:
-                word_list = word_tokenize(sent)
-                word_length_list.append(len(word_list))
-
-        sorted_word_length = sorted(word_length_list)
-        sorted_sent_length = sorted(sent_length_list)
-
-    return sorted_word_length[int(0.8*len(sorted_word_length))], sorted_sent_length[int(0.8*len(sorted_sent_length))]
+    Args:
+        trainer (Class): trainer object
+        model_folder (str): folder to save figures
+    """
+    plt.xlabel('Recall')
+    plt.ylabel('Precision')
+    plt.ylim(0.3, 1.0)
+    plt.xlim(0.0, 0.4)
+    plt.title('Precision-Recall')
+    plt.grid(True)
+    plt.plot(pr_x, pr_y, lw=2, label=str(epoch))
+    plt.legend(loc="upper right")
+    plt.savefig(os.path.join("fig_result", model_name))

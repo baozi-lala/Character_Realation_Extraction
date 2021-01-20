@@ -82,10 +82,11 @@ class GLRE(BaseModel):
         #     else:
         #         input_dim += params['lstm_dim'] * 2
         #
+        # gcn之后才加入dist？
         if params['finaldist']:
             input_dim += params['dist_dim'] * 2
 
-
+        # todo 换成document node?
         if params['context_att']:
             self.self_att = SelfAttention(input_dim, 1.0)
             input_dim = input_dim * 2

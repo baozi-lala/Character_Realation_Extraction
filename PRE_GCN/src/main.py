@@ -5,13 +5,14 @@ import json
 import torch
 import random
 import numpy as np
+from data.convert2result import fun
 
 from data.dataset import DocRelationDataset
 from data.loader import DataLoader, ConfigLoader
 from nnet.trainer import Trainer
 from utils.utils import setup_log, load_model, load_mappings,plot_learning_curve
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -52,8 +53,8 @@ def train(parameters):
 
     trainer.run()
 
-    # if parameters['plot']:
-    #     plot_learning_curve(trainer, model_folder)
+    if parameters['plot']:
+        plot_learning_curve(trainer, model_folder)
 
     # if parameters['save_model']:
     #     save_model(model_folder, trainer, train_loader)
@@ -85,7 +86,7 @@ def _test(parameters):
     test_loader(parameters=parameters)
     test_data, prune_recall = DocRelationDataset(test_loader, 'test', parameters, train_loader).__call__()
 
-    m = Trainer(train_loader, parameters, {'train': [], 'test': test_data}, model_folder)
+    m = Trainer(train_loader, parameters, {'train': [], 'test': test_data}, model_folder, prune_recall)
     trainer = load_model(parameters['remodelfile'], m)
     trainer.eval_epoch(final=True, save_predictions=True)
 
@@ -94,11 +95,28 @@ def main():
     config = ConfigLoader()
     parameters = config.load_config()
 
-    if parameters['train']:
-        train(parameters)
-
-    elif parameters['test']:
+    # if parameters['train']:
+    #     parameters['intrain']=True
+    #     train(parameters)
+    with open(os.path.join(parameters['output_path'], "train_finsh.ok"), 'r') as f:
+        for line in f.readlines():
+            input_theta = line.strip().split("\t")[1]
+            break
+    if parameters['test']:
+        parameters['intrain'] = True
+        parameters['test_data']='../data/DocPRE/processed/dev1_v2.json'
+        parameters['save_pred']='dev_test'
+        parameters['input_theta']=float(input_theta)
+        # parameters['remodelfile']='./results/docpre-dev/docred_basebert_full/'
         _test(parameters)
+    if parameters['test']:
+        parameters['intrain'] = False
+        parameters['test_data'] = '../data/DocPRE/processed/test1_v2.json'
+        parameters['save_pred'] = 'test'
+        parameters['input_theta'] = float(input_theta)
+        # parameters['remodelfile'] = './results/docpre-dev/docred_basebert_full/'
+        _test(parameters)
+    # fun()
 
 if __name__ == "__main__":
     main()

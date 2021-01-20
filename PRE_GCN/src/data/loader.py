@@ -21,23 +21,23 @@ class ConfigLoader:
     def load_cmd():
         parser = argparse.ArgumentParser()
         # parser.add_argument('--config', type=str, required=True, help='Yaml parameter file')
-        parser.add_argument('--train', action='store_true', default=False, help='Training mode - model is saved')
+        parser.add_argument('--train', action='store_true', default=True, help='Training mode - model is saved')
         parser.add_argument('--test', action='store_true',default=True, help='Testing mode - needs a model to load')
 
         parser.add_argument("--feature", default=str)
 
-        parser.add_argument("--remodelfile", type=str)
+        parser.add_argument("--remodelfile", type=str,default='./results/docpre-dev-sgns.merge.word/docred_basebert_full/')
         parser.add_argument('--input_theta', type=float, default=-1)
 
         parser.add_argument('--config_file', type=str,default='./configs/docpre_basebert.yaml')
-        parser.add_argument('--output_path', type=str, default='./results/docpre-dev/docred_basebert_full/')
+        parser.add_argument('--output_path', type=str, default='./results/docpre-dev-sgns.merge.word/docred_basebert_full/')
         parser.add_argument('--test_data', type=str,default='../data/DocPRE/processed/dev1_v2.json')
         parser.add_argument('--save_pred', type=str,default='dev')
 
         parser.add_argument('--batch', type=int, default=8, help='batch size')
         # parser.add_argument()
 
-        parser.add_argument('--CUDA_VISIBLE_DEVICES', type=str, default='1')
+        parser.add_argument('--CUDA_VISIBLE_DEVICES', type=str, default='0')
         return parser.parse_args(args=[])
 
     def load_config(self):
@@ -142,7 +142,7 @@ class DataLoader:
 
     def find_singletons(self, min_w_freq=1):
         """
-        Find items with frequency <= 2 and based on probability
+        Find items with frequency <= min_w_freq and based on probability
         """
         self.singletons = frozenset([elem for elem, val in self.word2count.items()
                                      if (val <= min_w_freq) and elem != 'UNK'])
@@ -204,7 +204,6 @@ class DataLoader:
         self.pre_embeds['UNK'] = np.asarray(np.random.normal(size=word_dim, loc=0, scale=0.05), 'f')
         self.add_word('PAD')
         self.pre_embeds['PAD'] = np.asarray(np.random.normal(size=word_dim, loc=0, scale=0.05), 'f')
-        self.pre_embeds['PAD'] = np.asarray(np.random.normal(size=word_dim, loc=0, scale=0.05), 'f')
         # todo 用所有词向量的平均
         # embed_mean, embed_std = word_embed.mean(), word_embed.std()
         #
@@ -235,6 +234,7 @@ class DataLoader:
 
     def find_max_length(self, length):
         """ Maximum distance between words """
+        # 所有文档中最长的句子
         for l in length:
             if l-1 > self.max_distance:
                 self.max_distance = l-1
@@ -244,7 +244,7 @@ class DataLoader:
         Read input.
         """
         lengths, sents, self.documents, self.entities, self.pairs, self.entities_cor_id = \
-            read(self.input, self.documents, self.entities, self.pairs,self.word2index,True)
+            read(self.input, self.documents, self.entities, self.pairs,self.word2index,self.params['intrain'])
 
         self.find_max_length(lengths)
 

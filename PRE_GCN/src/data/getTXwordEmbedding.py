@@ -86,14 +86,57 @@ def baidu_baike_word_vector(file_path, word_vector_name):
             values = line.split()
             word2id[values[0]] = i
             word2vec_list.append(np.asarray(values[1:], dtype='float32'))
+    word2id['UNK']=len(word2id)
+    word2vec_list.append(np.asarray(np.random.normal(size=300, loc=0, scale=0.05), 'f'))
+    word2id['PAD'] = len(word2id)
+    word2vec_list.append(np.asarray(np.random.normal(size=300, loc=0, scale=0.05), 'f'))
     print("finish")
     with open("./../../data/DocPRE/word_vector/processed/"+word_vector_name+"_word2id.json", 'w', encoding="utf-8") as g:
         json.dump(word2id, g, ensure_ascii=False)
     # custom_wv = KeyedVectors(200) # 腾讯词向量大小为 200
     # custom_wv.add(all_content, my_vector_list)
     np.save("./../../data/DocPRE/word_vector/processed/"+word_vector_name+"_vec.npy",word2vec_list)
+def convertdataset(data_name):
+    input_file=os.path.join("./../../data/DocPRE/processed/", data_name+ '.json')
+    with open(input_file, 'r', encoding='utf-8') as infile:
+        data=[]
+        for line in infile.readlines():
+            line = json.loads(line)
+            vertexSet=[]
+            entities=line['entities']
+            for entity in entities:
+                vertex=[]
+                mention = {}
+                mention['name']=entity['name']
+                mention['type'] = 'PER'
+                for x in entity['pos']:
+                    mention['pos']=int(x.split("-")[-1])
+                    mention['sent_id'] = int(x.split("-")[0])
+                    vertex.append(mention)
+                vertexSet.append(vertex)
+            item = {}
+            item['vertexSet'] = vertexSet
+            labels=[]
+            for label in line['lables']:
+                new_label={}
+                new_label['h'] = label['p1']
+                new_label['t'] = label['p2']
+                new_label['r'] = label['r']
+                new_label['evidence'] = []
+                labels.append(new_label)
+            item['labels'] = labels
+            item['title'] = line['title']
+            item['sents'] = line['sentences']
+            data.append(item)
+    out_path = os.path.join("./../../data/DocPRE/dataset/",data_name+ '.json')
+    json.dump(data, open(out_path, "w"),ensure_ascii=False)
+
+
 if __name__ == '__main__':
     # tx_word_vector()
-    path="./../../data/DocPRE/word_vector/sgns.target.word-word.dynwin5.thr10.neg5.dim300.iter5"
-    word_vector_name="baidubaike"
+    path="./../../data/DocPRE/word_vector/sgns.merge.word"
+    word_vector_name="merge"
     baidu_baike_word_vector(path,word_vector_name)
+    # convertdataset("train1_v2")
+    # convertdataset("dev1_v2")
+    # convertdataset("test1_v2")

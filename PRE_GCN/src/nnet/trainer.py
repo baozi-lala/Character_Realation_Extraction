@@ -164,6 +164,7 @@ class Trainer:
                     final_best_theta = theta
                     best_train_f1 = train_f1
                     print("dev f1=%f, save model" % dev_f1)
+
                     save_model(self.model_folder, self, self.loader)
 
             if self.es:

@@ -9,7 +9,7 @@ from tqdm import tqdm
 import scipy.sparse as sp
 from collections import OrderedDict
 
-from nnet.transformers_word_handle import transformers_word_handle
+# from nnet.transformers_word_handle import transformers_word_handle
 from utils.adj_utils import preprocess_adj, sparse_mxs_to_torch_sparse_tensor
 
 class DocRelationDataset:
@@ -65,6 +65,7 @@ class DocRelationDataset:
                         if word not in self.mappings.word2index:
                             miss_word += 1
                             sent += [self.mappings.word2index['UNK']]  # UNK words = singletons for train
+                        # todo 随机？
                         elif (word in self.mappings.singletons) and (random.uniform(0, 1) < float(self.unk_w_prob)):
                             sent += [self.mappings.word2index['UNK']]
                         else:
@@ -121,6 +122,7 @@ class DocRelationDataset:
             # RELATIONS
             # 当前文档的实体keys
             ents_keys = list(self.loader.entities[pmid].keys())  # in order
+            # relation组合
             trel = -1 * np.ones((len(ents_keys), len(ents_keys)))
             relation_multi_label = np.zeros((len(ents_keys), len(ents_keys), self.mappings.n_rel))
             rel_info = np.empty((len(ents_keys), len(ents_keys)), dtype='object_')
@@ -128,6 +130,7 @@ class DocRelationDataset:
                 rt = np.random.randint(len(ii))
                 trel[ents_keys.index(r[0]), ents_keys.index(r[1])] = self.mappings.rel2index[ii[0].type]
                 relation_set = set()
+                # 单关系只有一个i
                 for i in ii:
                     # assert relation_multi_label[ents_keys.index(r[0]), ents_keys.index(r[1]), self.mappings.rel2index[i.type]] != 1.0
                     # 第i个人和第j个人在第k种关系上为true
@@ -242,7 +245,7 @@ class DocRelationDataset:
 
             rgcn_adjacency = sparse_mxs_to_torch_sparse_tensor([sp.coo_matrix(rgcn_adjacency[i]) for i in range(3)])
 
-
+            # 全局pos的距离
             dist_dir_h_t = dist_dir_h_t[0: entity_size, 0:entity_size]
             self.data += [{'ents': ent, 'rels': trel, 'multi_rels': relation_multi_label,
                            'dist_dir': dist_dir_h_t, 'text': doc, 'info': rel_info,

@@ -67,8 +67,8 @@ pretrained_model: 'Bert'
 # data based
 train_data: ../data/DocPRE/processed/train1_v2.json
 test_data: ../data/DocPRE/processed/dev1_v2.json
-embeds: ../data/DocPRE/word_vector/sgns.target.word-word.dynwin5.thr10.neg5.dim300.iter5
-folder: ../results/docpre-dev
+embeds: ../data/DocPRE/word_vector/sgns.merge.word
+folder: ../results/docpre-dev-sogou
 save_pred: dev
 
 # options (chosen from parse input otherwise false)
