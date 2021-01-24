@@ -499,7 +499,7 @@ class BiLSTM(nn.Module):
         new_src_lengths, sort_index = torch.sort(src_lengths, dim=-1, descending=True)
         new_src = torch.index_select(src, dim=0, index=sort_index)
 
-        packed_src = nn.utils.rnn.pack_padded_sequence(new_src, new_src_lengths, batch_first=True, enforce_sorted=True)
+        packed_src = nn.utils.rnn.pack_padded_sequence(new_src, new_src_lengths.cpu(), batch_first=True, enforce_sorted=True)
         packed_outputs, (src_h_t, src_c_t) = self.lstm(packed_src)
 
         outputs, _ = nn.utils.rnn.pad_packed_sequence(packed_outputs, batch_first=True,

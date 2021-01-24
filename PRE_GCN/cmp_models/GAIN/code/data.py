@@ -27,7 +27,7 @@ class DGLREDataset(IterableDataset):
         # record training set mention triples
         self.instance_in_train = set([]) if instance_in_train is None else instance_in_train
         self.data = None
-        self.document_max_length = 512
+        self.document_max_length = 1500
         self.INTRA_EDGE = 0
         self.INTER_EDGE = 1
         self.LOOP_EDGE = 2
@@ -63,8 +63,8 @@ class DGLREDataset(IterableDataset):
                         entity_list[j][k]['sent_id'] = sent_id
 
                         dl = Ls[sent_id]
-                        pos0, pos1 = entity_list[j][k]['pos']
-                        entity_list[j][k]['global_pos'] = (pos0 + dl, pos1 + dl)
+                        pos = entity_list[j][k]['pos']
+                        entity_list[j][k]['global_pos'] = pos + dl
 
                 # generate positive examples
                 train_triple = []
@@ -121,15 +121,15 @@ class DGLREDataset(IterableDataset):
                 already_exist = set()  # dealing with NER overlapping problem
                 for idx, vertex in enumerate(entity_list, 1):
                     for v in vertex:
-                        sent_id, (pos0, pos1), ner_type = v['sent_id'], v['global_pos'], v['type']
-                        if (pos0, pos1) in already_exist:
+                        sent_id, pos, ner_type = v['sent_id'], v['global_pos'], v['type']
+                        if pos in already_exist:
                             continue
-                        pos_id[pos0:pos1] = idx
-                        ner_id[pos0:pos1] = ner2id[ner_type]
-                        mention_id[pos0:pos1] = mention_idx
+                        pos_id[pos] = idx
+                        ner_id[pos] = ner2id[ner_type]
+                        mention_id[pos] = mention_idx
                         entity2mention[idx].append(mention_idx)
                         mention_idx += 1
-                        already_exist.add((pos0, pos1))
+                        already_exist.add(pos)
 
                 # construct graph
                 graph = self.create_graph(Ls, mention_id, pos_id, entity2mention)
@@ -526,8 +526,8 @@ class BERTDGLREDataset(IterableDataset):
 
 class DGLREDataloader(DataLoader):
 
-    def __init__(self, dataset, batch_size, shuffle=False, h_t_limit_per_batch=300, h_t_limit=1722, relation_num=97,
-                 max_length=512, negativa_alpha=0.0, dataset_type='train'):
+    def __init__(self, dataset, batch_size, shuffle=False, h_t_limit_per_batch=300, h_t_limit=1722, relation_num=17,
+                 max_length=1500, negativa_alpha=0.0, dataset_type='train'):
         super(DGLREDataloader, self).__init__(dataset, batch_size=batch_size)
         self.shuffle = shuffle
         self.length = len(self.dataset)
@@ -538,7 +538,7 @@ class DGLREDataloader(DataLoader):
         self.h_t_limit_per_batch = h_t_limit_per_batch
         self.h_t_limit = h_t_limit
         self.relation_num = relation_num
-        self.dis2idx = np.zeros((512), dtype='int64')
+        self.dis2idx = np.zeros((max_length), dtype='int64')
         self.dis2idx[1] = 1
         self.dis2idx[2:] = 2
         self.dis2idx[4:] = 3
@@ -642,7 +642,7 @@ class DGLREDataloader(DataLoader):
                         ht_pairs[i, j, :] = torch.Tensor([h_idx + 1, t_idx + 1])
                         label = idx2label[(h_idx, t_idx)]
 
-                        delta_dis = hlist[0]['global_pos'][0] - tlist[0]['global_pos'][0]
+                        delta_dis = hlist[0]['global_pos'] - tlist[0]['global_pos']
                         if delta_dis < 0:
                             ht_pair_distance[i, j] = -int(self.dis2idx[-delta_dis]) + self.dis_size // 2
                         else:
@@ -664,7 +664,7 @@ class DGLREDataloader(DataLoader):
                         hlist, tlist = entities[h_idx], entities[t_idx]
                         ht_pairs[i, j, :] = torch.Tensor([h_idx + 1, t_idx + 1])
 
-                        delta_dis = hlist[0]['global_pos'][0] - tlist[0]['global_pos'][0]
+                        delta_dis = hlist[0]['global_pos'] - tlist[0]['global_pos']
                         if delta_dis < 0:
                             ht_pair_distance[i, j] = -int(self.dis2idx[-delta_dis]) + self.dis_size // 2
                         else:
@@ -685,7 +685,7 @@ class DGLREDataloader(DataLoader):
 
                                 relation_mask[i, j] = 1
 
-                                delta_dis = hlist[0]['global_pos'][0] - tlist[0]['global_pos'][0]
+                                delta_dis = hlist[0]['global_pos'] - tlist[0]['global_pos']
                                 if delta_dis < 0:
                                     ht_pair_distance[i, j] = -int(self.dis2idx[-delta_dis]) + self.dis_size // 2
                                 else:

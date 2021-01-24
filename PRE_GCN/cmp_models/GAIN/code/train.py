@@ -17,6 +17,9 @@ import os
 import json
 # for ablation
 # from models.GAIN_nomention import GAIN_GloVe, GAIN_BERT
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def train(opt):
     if opt.use_model == 'bert':
@@ -121,6 +124,7 @@ def train(opt):
             relation_multi_label = d['relation_multi_label']
             relation_mask = d['relation_mask']
             relation_label = d['relation_label']
+            print(ii)
 
             predictions = model(words=d['context_idxs'],
                                 src_lengths=d['context_word_length'],
@@ -226,15 +230,15 @@ if __name__ == '__main__':
     print('processId:', os.getpid())
     print('prarent processId:', os.getppid())
     opt = get_opt()
-    opt.train_set_save="../data/prepro_data/train_GloVe.pkl"
-    opt.dev_set_save = "../data/prepro_data/dev_GloVe.pkl"
-    opt.test_set_save = "../data/prepro_data/test_GloVe.pkl"
+    opt.train_set_save="../data/prepro_data/train_merge.pkl"
+    opt.dev_set_save = "../data/prepro_data/dev_merge.pkl"
+    opt.test_set_save = "../data/prepro_data/test_merge.pkl"
     opt.use_model = "bilstm"
     opt.model_name = "GAIN_GloVe"
     opt.lr = 0.001
     opt.batch_size = 32
     opt.test_batch_size=16
-    opt.epoch = 300
+    opt.epoch = 50
     opt.test_epoch = 5
     opt.log_step = 20
     opt.save_model_freq = 3
@@ -242,10 +246,10 @@ if __name__ == '__main__':
     opt.gcn_dim = 512
     opt.gcn_layers = 2
     opt.lstm_hidden_size = 256
-    opt.use_entity_type = True
-    opt.use_entity_id = True
+    opt.use_entity_type = False
+    opt.use_entity_id = False
 
-    opt.word_emb_size = 100
+    opt.word_emb_size = 300
     opt.finetune_word = True
     opt.pre_train_word = True
     opt.dropout = 0.6

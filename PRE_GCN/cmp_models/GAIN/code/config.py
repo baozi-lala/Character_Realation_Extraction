@@ -9,21 +9,21 @@ prepro_dir = os.path.join(data_dir, 'prepro_data/')
 if not os.path.exists(prepro_dir):
     os.mkdir(prepro_dir)
 
-rel2id = json.load(open(os.path.join(data_dir, 'rel2id.json'), "r"))
+rel2id = json.load(open(os.path.join(data_dir, 'rel2id.json'), "r",encoding="utf-8"))
 id2rel = {v: k for k, v in rel2id.items()}
-word2id = json.load(open(os.path.join(data_dir, 'word2id.json'), "r"))
-ner2id = json.load(open(os.path.join(data_dir, 'ner2id.json'), "r"))
+word2id = json.load(open(os.path.join(data_dir, 'merge_word2id.json'), "r",encoding="utf-8"))
+ner2id = json.load(open(os.path.join(data_dir, 'ner2id.json'), "r",encoding="utf-8"))
 
-word2vec = np.load(os.path.join(data_dir, 'vec.npy'))
+word2vec = np.load(os.path.join(data_dir, 'merge_vec.npy'))
 
 
 def get_opt():
     parser = argparse.ArgumentParser()
 
     # datasets path
-    parser.add_argument('--train_set', type=str, default=os.path.join(data_dir, 'train_annotated.json'))
-    parser.add_argument('--dev_set', type=str, default=os.path.join(data_dir, 'dev.json'))
-    parser.add_argument('--test_set', type=str, default=os.path.join(data_dir, 'test.json'))
+    parser.add_argument('--train_set', type=str, default=os.path.join(data_dir, 'train1_v2.json'))
+    parser.add_argument('--dev_set', type=str, default=os.path.join(data_dir, 'dev1_v2.json'))
+    parser.add_argument('--test_set', type=str, default=os.path.join(data_dir, 'test1_v2.json'))
 
     # save path of preprocessed datasets
     parser.add_argument('--train_set_save', type=str, default=os.path.join(prepro_dir, 'train.pkl'))
@@ -37,8 +37,8 @@ def get_opt():
     parser.add_argument('--pretrain_model', type=str, default='')
 
     # task/Dataset-related
-    parser.add_argument('--vocabulary_size', type=int, default=200000)
-    parser.add_argument('--relation_nums', type=int, default=97)
+    parser.add_argument('--vocabulary_size', type=int, default=1292609)
+    parser.add_argument('--relation_nums', type=int, default=17)
     parser.add_argument('--entity_type_num', type=int, default=7)
     parser.add_argument('--max_entity_num', type=int, default=80)
 
