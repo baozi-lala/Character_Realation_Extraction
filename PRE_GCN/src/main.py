@@ -12,7 +12,7 @@ from data.loader import DataLoader, ConfigLoader
 from nnet.trainer import Trainer
 from utils.utils import setup_log, load_model, load_mappings,plot_learning_curve
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -95,9 +95,9 @@ def main():
     config = ConfigLoader()
     parameters = config.load_config()
 
-    # if parameters['train']:
-    #     parameters['intrain']=True
-    #     train(parameters)
+    if parameters['train']:
+        parameters['intrain']=True
+        train(parameters)
     with open(os.path.join(parameters['output_path'], "train_finsh.ok"), 'r') as f:
         for line in f.readlines():
             input_theta = line.strip().split("\t")[1]

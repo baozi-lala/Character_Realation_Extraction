@@ -124,12 +124,12 @@ def read(input_file, documents, entities, relations,word2index,intrain):
                     senId=':'.join([x.split("-")[0] for x in p['pos']])
                     pos=':'.join([x.split("-")[-1] for x in p['pos']])
                     postotal=':'.join([str(x) for x in getPos(p['pos'],lens)])
-                    if p['name'] in word2index:
-                        name_id=word2index[p['name']]
-                    else:
-                        name_id=-1
+                    # if p['name'] in word2index:
+                    #     name_id=word2index[p['name']]
+                    # else:
+                    #     name_id=-1
 
-                    entities[pmid][id] = EntityInfo(p['id'], name_id, senId, pos, postotal)
+                    entities[pmid][id] = EntityInfo(p['id'], p['name'], senId, pos, postotal)
                     # 应该算在文档中的pos，也就是全局pos
                     entities_dist.append((id, min([int(a) for a in postotal.split(':')])))
             for label in line['lables']:

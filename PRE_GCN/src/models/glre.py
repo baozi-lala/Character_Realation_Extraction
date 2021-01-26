@@ -306,8 +306,10 @@ class GLRE(BaseModel):
         graph = self.classifier(graph_select)
 
         loss, stats, preds, pred_pairs, multi_truth, mask, truth = self.estimate_loss(graph, batch['relations'][select],
-                                                                                      batch['multi_relations'][select])
-
-        return loss, stats, preds, select, pred_pairs, multi_truth, mask, truth
+                                                                                          batch['multi_relations'][select])
+        if 'predict' not in batch.keys():
+            return loss, stats, preds, select, pred_pairs, multi_truth, mask, truth
+        else:
+            return preds, select, pred_pairs
 
 

@@ -122,7 +122,7 @@ def plot_learning_curve(trainer, model_folder):
     plt.plot(x1, trainer.test_res['loss'], 'g', label='test')
     plt.legend()
     plt.ylabel('Loss')
-    plt.yticks(np.arange(0, 1, 0.1))
+    plt.yticks(np.arange(0, 0.5, 0.1))
 
     plt.subplot(2, 1, 2)
     plt.plot(x, trainer.train_res['score'], 'b', label='train')

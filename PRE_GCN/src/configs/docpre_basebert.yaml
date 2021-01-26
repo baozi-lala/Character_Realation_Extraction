@@ -3,7 +3,7 @@ dataset: PRE_data
 
 global_rep: true
 local_rep: false
-context_att: true
+context_att: false
 
 query: global # global
 
@@ -13,7 +13,7 @@ more_lstm: false
 
 # encoder
 emb_method: true # true for load_embeds
-emb_method_file: baidubaike
+emb_method_file: merge
 emb_method_file_path: ../data/DocPRE/word_vector/processed/
 word_dim: 300
 lstm_dim: 256
@@ -29,7 +29,7 @@ gcn_in_drop: 0.2
 gcn_out_drop: 0.2
 
 # network
-batch: 8
+batch: 32
 epoch: 50
 drop_i: 0.5 # 0.5
 drop_m: 0.0
@@ -68,7 +68,7 @@ pretrained_model: 'Bert'
 train_data: ../data/DocPRE/processed/train1_v2.json
 test_data: ../data/DocPRE/processed/dev1_v2.json
 embeds: ../data/DocPRE/word_vector/sgns.merge.word
-folder: ../results/docpre-dev-sogou
+folder: ../results/docpre-dev-merge
 save_pred: dev
 
 # options (chosen from parse input otherwise false)

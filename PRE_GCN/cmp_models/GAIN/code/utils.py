@@ -5,8 +5,8 @@ import torch
 
 
 def get_cuda(tensor):
-    # if torch.cuda.is_available():
-    #     return tensor.cuda()
+    if torch.cuda.is_available():
+        return tensor.cuda()
     return tensor
 
 

@@ -35,13 +35,13 @@ class DGLREDataset(IterableDataset):
 
         print('Reading data from {}.'.format(src_file))
         if os.path.exists(save_file):
-            with open(file=save_file, mode='rb') as fr:
-                info = pickle.load(fr)
-                self.data = info['data']
-                self.instance_in_train = info['intrain_set']
-            print('load preprocessed data from {}.'.format(save_file))
-
-        else:
+        #     with open(file=save_file, mode='rb') as fr:
+        #         info = pickle.load(fr)
+        #         self.data = info['data']
+        #         self.instance_in_train = info['intrain_set']
+        #     print('load preprocessed data from {}.'.format(save_file))
+        #
+        # else:
             with open(file=src_file, mode='r', encoding='utf-8') as fr:
                 ori_data = json.load(fr)
             print('loading..')
@@ -63,8 +63,8 @@ class DGLREDataset(IterableDataset):
                         entity_list[j][k]['sent_id'] = sent_id
 
                         dl = Ls[sent_id]
-                        pos = entity_list[j][k]['pos']
-                        entity_list[j][k]['global_pos'] = pos + dl
+                        pos0, pos1 = entity_list[j][k]['pos']
+                        entity_list[j][k]['global_pos'] = (pos0 + dl, pos1 + dl)
 
                 # generate positive examples
                 train_triple = []
@@ -121,15 +121,15 @@ class DGLREDataset(IterableDataset):
                 already_exist = set()  # dealing with NER overlapping problem
                 for idx, vertex in enumerate(entity_list, 1):
                     for v in vertex:
-                        sent_id, pos, ner_type = v['sent_id'], v['global_pos'], v['type']
-                        if pos in already_exist:
+                        sent_id, (pos0, pos1), ner_type = v['sent_id'], v['global_pos'], v['type']
+                        if (pos0, pos1) in already_exist:
                             continue
-                        pos_id[pos] = idx
-                        ner_id[pos] = ner2id[ner_type]
-                        mention_id[pos] = mention_idx
+                        pos_id[pos0:pos1+1] = idx
+                        ner_id[pos0:pos1+1] = ner2id[ner_type]
+                        mention_id[pos0:pos1+1] = mention_idx
                         entity2mention[idx].append(mention_idx)
                         mention_idx += 1
-                        already_exist.add(pos)
+                        already_exist.add((pos0, pos1))
 
                 # construct graph
                 graph = self.create_graph(Ls, mention_id, pos_id, entity2mention)
@@ -642,7 +642,7 @@ class DGLREDataloader(DataLoader):
                         ht_pairs[i, j, :] = torch.Tensor([h_idx + 1, t_idx + 1])
                         label = idx2label[(h_idx, t_idx)]
 
-                        delta_dis = hlist[0]['global_pos'] - tlist[0]['global_pos']
+                        delta_dis = hlist[0]['global_pos'][0] - tlist[0]['global_pos'][0]
                         if delta_dis < 0:
                             ht_pair_distance[i, j] = -int(self.dis2idx[-delta_dis]) + self.dis_size // 2
                         else:
@@ -664,7 +664,7 @@ class DGLREDataloader(DataLoader):
                         hlist, tlist = entities[h_idx], entities[t_idx]
                         ht_pairs[i, j, :] = torch.Tensor([h_idx + 1, t_idx + 1])
 
-                        delta_dis = hlist[0]['global_pos'] - tlist[0]['global_pos']
+                        delta_dis = hlist[0]['global_pos'][0] - tlist[0]['global_pos'][0]
                         if delta_dis < 0:
                             ht_pair_distance[i, j] = -int(self.dis2idx[-delta_dis]) + self.dis_size // 2
                         else:
@@ -685,7 +685,7 @@ class DGLREDataloader(DataLoader):
 
                                 relation_mask[i, j] = 1
 
-                                delta_dis = hlist[0]['global_pos'] - tlist[0]['global_pos']
+                                delta_dis = hlist[0]['global_pos'][0] - tlist[0]['global_pos'][0]
                                 if delta_dis < 0:
                                     ht_pair_distance[i, j] = -int(self.dis2idx[-delta_dis]) + self.dis_size // 2
                                 else:
