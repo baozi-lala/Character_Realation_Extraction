@@ -4,6 +4,7 @@ dataset: PRE_data
 global_rep: true
 local_rep: false
 context_att: false
+doc_node: true
 
 query: global # global
 

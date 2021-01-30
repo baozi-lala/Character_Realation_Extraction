@@ -561,7 +561,7 @@ class Trainer:
             temp = []
             temp_sep=[]
             for e in b['ents']:
-                temp += [[e[0] + ent_count, e[1], [i + word_count for i in e[4]], [i + sent_count for i in e[2]], e[5],[i for i in e[3]]]]  # id  name_id pos sent_id, type
+                temp += [[e[0] + ent_count, e[1], [i + word_count for i in e[4]], [i + sent_count for i in e[2]], e[5],[i for i in e[3]]]]  # id  name_id pos sent_id, type,pos
                 for i,j in zip(e[4],e[2]):
                     temp_sep += [[e[0] + ent_count_sep, e[1], i + word_count, j + sent_count,e[5]]]  # id  name_id pos sent_id, type
             # id, name_id,pos,sent_id,type
@@ -577,8 +577,8 @@ class Trainer:
         # print(ent_count)
         # print(word_count)
         new_batch['entities'] = np.concatenate(new_batch['entities'], axis=0)  # 50, 5
-        new_batch['entities_sep'] = np.concatenate(new_batch['entities_sep'], axis=0)
-        new_batch['entities_sep'] = torch.as_tensor(new_batch['entities_sep']).long().to(self.device)
+        # new_batch['entities_sep'] = np.concatenate(new_batch['entities_sep'], axis=0)
+        # new_batch['entities_sep'] = torch.as_tensor(new_batch['entities_sep']).long().to(self.device)
         new_batch['bert_token'] = torch.as_tensor(np.concatenate(new_batch['bert_token'])).long().to(self.device)
         new_batch['bert_mask'] = torch.as_tensor(np.concatenate(new_batch['bert_mask'])).long().to(self.device)
         new_batch['bert_starts'] = torch.as_tensor(np.concatenate(new_batch['bert_starts'])).long().to(self.device)

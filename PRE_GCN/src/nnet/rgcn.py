@@ -45,7 +45,9 @@ class RGCN_Layer(nn.Module):
         # todo 还没看懂
         maskss = []
         denomss = []
-        edge_cnt=3
+        edge_cnt = 3
+        if self.params['doc_node']:
+            edge_cnt=5
         # 边的信息 矩阵W
         for batch in range(adj.shape[0]):
             masks = []

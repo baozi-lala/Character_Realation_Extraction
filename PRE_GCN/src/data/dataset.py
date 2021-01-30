@@ -22,6 +22,7 @@ class DocRelationDataset:
         self.data = []
         self.lowercase = params['lowercase']
         self.prune_recall = {"0-max":0, "0-1":0, "0-3":0, "1-3":0, "1-max":0, "3-max":0}
+        self.doc_node=params['doc_node']
         # if 'bert-large' in params['pretrain_l_m'] and 'albert' not in params['pretrain_l_m']:
         #     self.bert = transformers_word_handle("bert", 'bert-large-uncased-whole-word-masking', dataset=params['dataset'])
         # elif 'bert-base-chinese' in params['pretrain_l_m'] and 'albert' not in params['pretrain_l_m']:
@@ -111,9 +112,12 @@ class DocRelationDataset:
             ent.sort(key=lambda x: x[0], reverse=False)
             # nodes_mention.sort(key=lambda x: x[0], reverse=False)
             # nodes += nodes_mention
+
             for s, sentence in enumerate(self.loader.documents[pmid]):
                 nodes += [[s, s, [s], [s],[s], 2]]
-            # entity：0,sentence:2
+            if self.doc_node:
+                nodes += [[0, 0, [0], [0], [0],3]]
+            # entity：0,sentence:2,doc:1
             nodes = np.array(nodes,dtype=object)
 
             max_node_cnt = max(max_node_cnt, nodes.shape[0])
@@ -214,7 +218,11 @@ class DocRelationDataset:
             adjacency = np.full((r_id.shape[0], r_id.shape[0]), 0, 'i')
             # 5：mention-mention, entity-mention, sentence-sentence, mention-sentence, entity-sentence
             # 3：entity-entity, sentence-sentence, entity-sentence
-            rgcn_adjacency = np.full((3, r_id.shape[0], r_id.shape[0]), 0.0)
+            # 5：entity-entity, entity-document,sentence-sentence, entity-sentence,sentence-document
+            cnt=3
+            if self.doc_node:
+                cnt=5
+            rgcn_adjacency = np.full((cnt, r_id.shape[0], r_id.shape[0]), 0.0)
             mask = np.full((r_id.shape[0], r_id.shape[0]), False)
             for i in range(r_id.shape[0]):
                 for j in range(r_id.shape[0]):
@@ -225,32 +233,43 @@ class DocRelationDataset:
                     np.logical_or(r_id == 0, r_id == 3) & np.logical_or(c_id == 0, c_id == 3) & mask, 1,
                     rgcn_adjacency[0])
 
-            # entity-mention
-            # adjacency = np.where((r_id == 0) & (c_id == 1) & (r_Eid == c_Eid), 1, adjacency)  # belongs to entity
-            # adjacency = np.where((r_id == 1) & (c_id == 0) & (r_Eid == c_Eid), 1, adjacency)
-            # rgcn_adjacency[1] = np.where((r_id == 0) & (c_id == 1) & (r_Eid == c_Eid), 1, rgcn_adjacency[1])  # belongs to entity
-            # rgcn_adjacency[1] = np.where((r_id == 1) & (c_id == 0) & (r_Eid == c_Eid), 1, rgcn_adjacency[1])
 
             # sentence-sentence (direct + indirect)
             # todo 去掉indirect
             adjacency = np.where((r_id == 2) & (c_id == 2), 1, adjacency)
-            rgcn_adjacency[1] = np.where((r_id == 2) & (c_id == 2), 1, rgcn_adjacency[2])
+            rgcn_adjacency[1] = np.where((r_id == 2) & (c_id == 2), 1, rgcn_adjacency[1])
 
             # entity-sentence
             adjacency = np.where(np.logical_or(r_id == 0, r_id == 3) & (c_id == 2) & mask, 1, adjacency)  # belongs to sentence
             adjacency = np.where((r_id == 2) & np.logical_or(c_id == 0, c_id == 3) & mask, 1, adjacency)
             rgcn_adjacency[2] = np.where(np.logical_or(r_id == 0, r_id == 3) & (c_id == 2) & mask, 1, rgcn_adjacency[2])  # belongs to sentence
             rgcn_adjacency[2] = np.where((r_id == 2) & np.logical_or(c_id == 0, c_id == 3) & mask, 1, rgcn_adjacency[2])
+            if self.doc_node:
+                # entity-document
+                adjacency = np.where((r_id == 0) & (c_id == 3), 1, adjacency)
+                adjacency = np.where((r_id == 3) & (c_id == 0), 1, adjacency)
+                rgcn_adjacency[3] = np.where((r_id == 0) & (c_id == 3), 1, rgcn_adjacency[3])  # belongs to entity
+                rgcn_adjacency[3] = np.where((r_id == 3) & (c_id == 0), 1, rgcn_adjacency[3])
 
+                # sentence-document
+                adjacency = np.where((r_id == 2) & (c_id == 3), 1, adjacency)
+                adjacency = np.where((r_id == 3) & (c_id == 2), 1, adjacency)
+                rgcn_adjacency[4] = np.where((r_id == 2) & (c_id == 3), 1, rgcn_adjacency[4])  # belongs to entity
+                rgcn_adjacency[4] = np.where((r_id == 3) & (c_id == 2), 1, rgcn_adjacency[4])
 
-            rgcn_adjacency = sparse_mxs_to_torch_sparse_tensor([sp.coo_matrix(rgcn_adjacency[i]) for i in range(3)])
+            rgcn_adjacency = sparse_mxs_to_torch_sparse_tensor([sp.coo_matrix(rgcn_adjacency[i]) for i in range(cnt)])
 
             # 全局pos的距离
             dist_dir_h_t = dist_dir_h_t[0: entity_size, 0:entity_size]
+            if self.doc_node:
+                sec=np.array([len(self.loader.entities[pmid].items()), len(doc),1, sum([len(s) for s in doc])])
+            else:
+                sec=np.array([len(self.loader.entities[pmid].items()), len(doc), sum([len(s) for s in doc])])
+
             self.data += [{'ents': ent, 'rels': trel, 'multi_rels': relation_multi_label,
                            'dist_dir': dist_dir_h_t, 'text': doc, 'info': rel_info,
                            'adjacency': adjacency, 'rgcn_adjacency': rgcn_adjacency,
-                           'section': np.array([len(self.loader.entities[pmid].items()), len(doc), sum([len(s) for s in doc])]),
+                           'section':sec ,
                            'word_sec': np.array([len(s) for s in doc]),
                            'words': np.hstack([np.array(s) for s in doc]), 'bert_token': bert_token, 'bert_mask': bert_mask, 'bert_starts': bert_starts}]
         print("miss_word", miss_word)

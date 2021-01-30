@@ -22,7 +22,7 @@ def split_n_pad(nodes, section, pad=0, return_mask=False):
     :param pad:
     :return:
     """
-    # assert nodes.shape[0] == sum(section.tolist()), print(nodes.shape[0], sum(section.tolist()))
+    assert nodes.shape[0] == sum(section.tolist()), print(nodes.shape[0], sum(section.tolist()))
     nodes = torch.split(nodes, section.tolist())
     nodes = pad_sequence(nodes, batch_first=True, padding_value=pad)
     if not return_mask:

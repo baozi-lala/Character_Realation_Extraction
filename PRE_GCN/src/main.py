@@ -12,7 +12,7 @@ from data.loader import DataLoader, ConfigLoader
 from nnet.trainer import Trainer
 from utils.utils import setup_log, load_model, load_mappings,plot_learning_curve
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -59,21 +59,6 @@ def train(parameters):
     # if parameters['save_model']:
     #     save_model(model_folder, trainer, train_loader)
 
-class NumpyEncoder(json.JSONEncoder):
-    """ Special json encoder for numpy types """
-
-    def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        elif isinstance(obj, np.floating):
-            return float(obj)
-        elif isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return json.JSONEncoder.default(self, obj)
-def operate_data(train,str):
-    dumped = json.dumps(train, cls=NumpyEncoder)
-    with open('../data/DocPRE/processed/'+str, 'w', encoding='utf-8') as f:
-        json.dump(dumped, f, ensure_ascii=False)
 
 def _test(parameters):
     model_folder = setup_log(parameters, parameters['save_pred'] + '_test')

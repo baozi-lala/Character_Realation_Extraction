@@ -19,6 +19,8 @@ class GLRE(BaseModel):
         super(GLRE, self).__init__(params, pembeds, loss_weight, sizes, maps, lab2ign)
         # contextual semantic information
         self.more_gru = params['more_gru']
+        self.doc_node = params['doc_node']
+
         # if self.more_lstm:
         #     if 'bert-large' in params['pretrain_l_m'] or 'albert-large' in params['pretrain_l_m']:
         #         lstm_input = 1024
@@ -130,14 +132,14 @@ class GLRE(BaseModel):
         Args:
             nodes: entities+sentences
             info:        (Tensor, 5 columns) entity_id, entity_nameId, pos_id, sentence_id,type
-            section:     (Tensor <B, 3>) #entities/#entities/#sentences per batch
+            section:     (Tensor <B, 3>) #entities/#sentences/ per batch
             # positions:   distances between nodes (only M-M and S-S)
 
         Returns: (Tensor) graph, (Tensor) tensor_mapping, (Tensors) indices, (Tensor) node information
         """
 
-        # all nodes in order: entities - mentions - sentences
-        nodes = torch.cat(nodes, dim=0)  # e  + s (all)
+        # all nodes in order: entities - sentences-document
+        nodes = torch.cat(nodes, dim=0)  # e  + s +d(all)
         nodes_info = self.node_info(section, info)                 # info/node: node type | semantic type | sentence ID
 
 
@@ -152,21 +154,29 @@ class GLRE(BaseModel):
 
         return nodes, nodes_info
 
-    def node_layer(self, encoded_seq, info, word_sec):
+    def node_layer(self, encoded_seq, info, word_sec,sen_len):
         # SENTENCE NODES
         # todo 这里是不是有改进的点
         sentences = torch.mean(encoded_seq, dim=1)  # sentence nodes (avg of sentence words)
-
         # ENTITY NODES
         encoded_seq_token = rm_pad(encoded_seq, word_sec)
         entities = self.merge_tokens(info, encoded_seq_token)
         # entities = self.merge_mentions(info, mentions)  # entity nodes
-        return (entities, sentences)
+        if self.doc_node:
+            sens=torch.split(sentences, sen_len.tolist(), dim=0)
+            doc=[]
+            for sen in sens:
+                doc.append(torch.mean(sen, dim=0))
+            doc=torch.stack(doc)
+            # doc=torch.from_numpy(np.array(doc,float64)).to(self.device)
+            return (entities, sentences, doc)
+        else:
+            return (entities, sentences)
 
     def node_info(self, section, info):
         """
         info:        (Tensor, 5 columns) entity_id, entity_nameId, pos_id, sentence_id,type
-        section:    Tensor  entities/#entities/#sentences per batch
+        section:    Tensor  entities/sentences/document per batch
         Col 0: node type  | Col 1: sentence id
         """
         res=[]
@@ -175,6 +185,9 @@ class GLRE(BaseModel):
             # sent_id.append(torch.tensor(info[i][3]))
         for i in range(section.sum(dim=0)[1]):
             res.append((2,[i]))
+        if self.doc_node:
+            for i in range(section.sum(dim=0)[2]):
+                res.append((3, [i]))
             # sent_id.append(torch.tensor([i]))
         # res = torch.Tensor(res).to(self.device)  # node types (0,2)
         return res
@@ -191,7 +204,7 @@ class GLRE(BaseModel):
     @staticmethod
     def rearrange_nodes(nodes, section):
         """
-        Re-arrange nodes so that they are in 'Entity - Sentence' order for each document (batch)
+        Re-arrange nodes so that they are in 'Entity - Sentence-Document' order for each document (batch)
         """
         # todo 没懂需要回来看一下
         if isinstance(nodes,list):
@@ -221,11 +234,14 @@ class GLRE(BaseModel):
     def forward(self, batch):
 
         input_vec = self.input_layer(batch['words'])
+        index=2
+        if self.doc_node:
+            index=3
 
         if self.pretrain_l_m == 'none':
             # pad+encode
-            encoded_seq = self.encoding_layer(input_vec, batch['section'][:, 2])
-            encoded_seq = rm_pad(encoded_seq, batch['section'][:, 2])
+            encoded_seq = self.encoding_layer(input_vec, batch['section'][:, index])
+            encoded_seq = rm_pad(encoded_seq, batch['section'][:, index])
             encoded_seq = self.pretrain_l_m_linear_re(encoded_seq)
         else:
             context_output = self.pretrain_lm(batch['bert_token'], attention_mask=batch['bert_mask'])[0]
@@ -233,7 +249,7 @@ class GLRE(BaseModel):
             context_output = [layer[starts.nonzero().squeeze(1)] for layer, starts in
                               zip(context_output, batch['bert_starts'])]
             context_output_pad = []
-            for output, word_len in zip(context_output, batch['section'][:, 2]):
+            for output, word_len in zip(context_output, batch['section'][:, index]):
                 if output.size(0) < word_len:
                     padding = Variable(output.data.new(1, 1).zero_())
                     output = torch.cat([output, padding.expand(word_len - output.size(0), output.size(1))], dim=0)
@@ -242,8 +258,8 @@ class GLRE(BaseModel):
             context_output = torch.cat(context_output_pad, dim=0)
 
             if self.more_lstm:
-                context_output = self.encoding_layer(context_output, batch['section'][:, 2])
-                context_output = rm_pad(context_output, batch['section'][:, 2])
+                context_output = self.encoding_layer(context_output, batch['section'][:, index])
+                context_output = rm_pad(context_output, batch['section'][:, index])
             encoded_seq = self.pretrain_l_m_linear_re(context_output)
         # 按句子分
         encoded_seq = split_n_pad(encoded_seq, batch['word_sec'])
@@ -255,12 +271,13 @@ class GLRE(BaseModel):
         if self.pretrain_l_m == 'none':
             # assert self.lstm_encoder
             # 每个节点的表示，第二个维度相同，第一个维度为个数
-            nodes = self.node_layer(encoded_seq, batch['entities'], batch['word_sec'])
+            nodes = self.node_layer(encoded_seq, batch['entities'], batch['word_sec'],batch['section'][:, 1])
         else:
-            nodes = self.node_layer(encoded_seq, batch['entities'], batch['word_sec'])
+            nodes = self.node_layer(encoded_seq, batch['entities'], batch['word_sec'],batch['section'][:, 1])
 
         # init_nodes = nodes
-        nodes, nodes_info = self.graph_layer(nodes, batch['entities'], batch['section'][:, 0:2])
+        nodes, nodes_info = self.graph_layer(nodes, batch['entities'], batch['section'][:, 0:index])
+
         nodes, _ = self.rgcn_layer(nodes, batch['rgcn_adjacency'], batch['section'][:, 0:2])
         entity_size = batch['section'][:, 0].max()
         r_idx, c_idx = torch.meshgrid(torch.arange(entity_size).to(self.device),
