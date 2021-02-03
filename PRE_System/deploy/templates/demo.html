@@ -1,0 +1,302 @@
+<!--
+=========================================================
+Material Kit - v2.0.7
+=========================================================
+
+Product Page: https://www.creative-tim.com/product/material-kit
+Copyright 2020 Creative Tim (https://www.creative-tim.com/)
+
+Coded by Creative Tim
+
+=========================================================
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <link rel="apple-touch-icon" sizes="76x76" href="../static/img/apple-icon.png">
+  <link rel="icon" type="image/png" href="../static/img/favicon.png">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+  <title>
+    Demo | Visual Entailment
+  </title>
+  <meta content='width=device-width, initial-scale=1.0, shrink-to-fit=no' name='viewport' />
+  <!--     Fonts and icons     -->
+  <link rel="stylesheet" type="text/css" href="../static/fonts/roboto.css" />
+  <link rel="stylesheet" href="../static/fonts/font-awesome.min.css">
+  <!-- CSS Files -->
+  <link href="../static/css/material-kit.css" rel="stylesheet" />
+</head>
+
+<body class="landing-page sidebar-collapse">
+  <nav class="navbar navbar-transparent navbar-color-on-scroll fixed-top navbar-expand-lg" color-on-scroll="100"
+    id="sectionsNav">
+    <div class="container">
+      <div class="navbar-translate">
+        <a class="navbar-brand" href=""> <i class="material-icons">home</i> </a>
+      </div>
+    </div>
+  </nav>
+  <div class="page-header header-filter" data-parallax="true" style="background-image: url('../static/img/bg2.jpg')">
+    <div class="container">
+      <div class="row">
+        <div class="col-md-6">
+          <h1 class="title">Visual Entailment Recognition</h1>
+          <h4>Prototype system by Jiayun SHEN</h4>
+          <!-- <br> -->
+          <!-- <a href="#ve_recognizer" class="btn btn-danger btn-raised btn-md">
+            <i class="fa fa-play"></i> Try
+          </a> -->
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="main main-raised">
+    <div class="container">
+      <div class="section text-center">
+        <div class="row">
+          <div class="col-md-8 ml-auto mr-auto">
+            <h2 class="title">What is Visual Entailment?</h2>
+            <h5 class="description">Visual Entailment(VE) is a multi-modal inference task focusing on recognizing if
+              image premise implies sentence hypothesis.</h5>
+          </div>
+        </div>
+        <div class="features">
+          <div class="row">
+            <div class="col-md-4">
+              <div class="info">
+                <div class="icon icon-success">
+                  <i class="material-icons">check_circle</i>
+                </div>
+                <h4 class="info-title">Entailment</h4>
+                <p>Entailment holds if there is enough evidence in P to conclude that H is true.</p>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="info">
+                <div class="icon icon-warning">
+                  <i class="material-icons">help</i>
+                </div>
+                <h4 class="info-title">Neutral</h4>
+                <p>The relation is neutral if the evidence in P is insufficient to draw a conclusion from H.</p>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="info">
+                <div class="icon icon-danger">
+                  <i class="material-icons">cancel</i>
+                </div>
+                <h4 class="info-title">Contradiction</h4>
+                <p>Contradiction is concluded wherever H contradicts P.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="section text-center" id="ve_recognizer">
+        <h2 class="title">Online Recognition</h2>
+        <div class="row">
+          <div class="col-lg-6 col-md-6 col-sm-12">
+            <div class="ml-auto mr-auto">
+              <img id="img_preview" src="../static/img/wait_upload_img.jpg"
+                class="img-raised rounded img-fluid">
+              <form enctype="multipart/form-data" id="uploadForm">
+                <div class="ml-auto mr-auto">
+                  <input type='file' class="btn btn-primary" name='image' id='img_file'
+                    accept="image/gif,image/jpeg,image/jpg,image/png">
+                </div>
+              </form>
+            </div>
+            <div class="ml-auto mr-auto">
+              <div class="form-group bmd-form-group">
+                <label for="text_hypothesis" class="bmd-label-floating">Hypothesis Sentence</label>
+                <input type="text" class="form-control" id="text_hypothesis" value="There is a man.">
+                <span class="bmd-help">Input a sentence as hypothesis</span>
+              </div>
+            </div>
+            <div class="col-lg-6 col-sm-8 ml-auto mr-auto">
+              <button id='btn_upload' class='btn btn-primary btn-round col-sm-8 col-lg-6'><span
+                  class="material-icons">done</span></button>
+            </div>
+          </div>
+          <div class="col-lg-1 col-md-1"></div>
+          <div class="col-lg-5 col-md-5 col-sm-12">
+            <div id="echarts_pie" style="width:100%;height:480px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+  <footer class="footer footer-default">
+    <div class="container">
+      <nav class="float-left">
+        <ul>
+          <li>
+            <a href="https://github.com/HearyShen">
+              GitHub
+            </a>
+          </li>
+          <li>
+            <a href="mailto:jiayun.shen@foxmail.com">
+              MailMe
+            </a>
+          </li>
+        </ul>
+      </nav>
+      <div class="copyright float-right">
+        &copy;
+        <script>
+          document.write(new Date().getFullYear())
+        </script>, made with <i class="material-icons">favorite</i> by
+        <a href="https://heary.cn" target="_blank">Heary</a>
+      </div>
+    </div>
+  </footer>
+</body>
+<!--   Core JS Files   -->
+<script src="../static/js/core/jquery.min.js" type="text/javascript"></script>
+<script src="../static/js/core/popper.min.js" type="text/javascript"></script>
+<script src="../static/js/core/bootstrap-material-design.min.js" type="text/javascript"></script>
+<script src="../static/js/plugins/moment.min.js"></script>
+<!-- Control Center for Material Kit: parallax effects, scripts for the example pages etc -->
+<script src="../static/js/material-kit.js" type="text/javascript"></script>
+<!-- Echarts min js -->
+<script src="../static/js/plugins/echarts.min.js" type="text/javascript"></script>
+<script>
+  $(document).ready(function () {
+
+    $('#img_file').change(e => {
+      const files = e.target.files || e.dataTransfer.files;
+      const objectURL = window.URL.createObjectURL(files[0]);
+      $('#img_preview').attr('src', objectURL);
+      $("#result_row").slideUp("fast");
+      $('#result').empty();
+      $('#caption').empty();
+    });
+
+    function upload() {
+      // https://blog.csdn.net/nostones/article/details/44021297
+      var formData = new FormData();
+      formData.append('image', $('#img_file')[0].files[0]);
+      formData.append("text", $("#text_hypothesis").val());
+      $.ajax({
+        url: '/predict',
+        data: formData,
+        dataType: "json",
+        type: "POST",
+        async: false,
+        cache: false,
+        contentType: false,
+        processData: false,
+        success: function (data) {
+          var jsonstr = JSON.stringify(data);
+          var jsonObj = JSON.parse(jsonstr);
+          if (!jsonObj.success) {
+            alert('ERROR: Remote server failed to process the request.');
+            return
+          }
+          renderPie(jsonObj);
+        },
+        error: function (data) {
+          console.log(data);
+        }
+      });
+    }
+
+    $("#btn_upload").click(function () {
+      $('#result').empty();
+      upload();
+    });
+
+    var label2color = { entailment: "green", neutral: "yellow", contradiction: "red" };
+
+    function renderPie(resp) {
+      console.log(resp);
+      // prepare data
+      var data = new Array();
+      var colors = new Array();
+      $.each(resp.predictions, function (name, value) {
+        var rank = name + 1;
+        var label = value.label;
+        var probability = (value.prob * 100).toFixed(2);
+        datum = { name: label, value: probability };
+        data.push(datum);
+        colors.push(label2color[label]);
+      });
+
+      var myChart = echarts.init(document.getElementById('echarts_pie'));
+      option = {
+        title: {
+          text: 'Is this ' + resp.predictions[0].label + '?',
+          subtext: 'Predicted in ' + resp.elapse.toFixed(3) + 's',
+          left: 'center'
+        },
+        tooltip: {
+          trigger: 'item'
+        },
+        legend: {
+          orient: 'vertical',
+          left: 'left',
+        },
+        series: [
+          {
+            name: 'Results(%)',
+            type: 'pie',
+            radius: '50%',
+            data: data,
+            emphasis: {
+              itemStyle: {
+                shadowBlur: 10,
+                shadowOffsetX: 0,
+                shadowColor: 'rgba(0, 0, 0, 0.5)'
+              }
+            }
+          }
+        ],
+        color: colors
+      };
+      myChart.setOption(option);
+    }
+
+  });
+
+  var myChart = echarts.init(document.getElementById('echarts_pie'));
+  option = {
+    title: {
+      text: 'Predictions',
+      subtext: 'Labels and Scores',
+      left: 'center'
+    },
+    tooltip: {
+      trigger: 'item'
+    },
+    legend: {
+      orient: 'vertical',
+      left: 'left',
+    },
+    series: [
+      {
+        name: 'Ready',
+        type: 'pie',
+        radius: '50%',
+        data: [
+          { value: 0, name: 'Unknown' },
+        ],
+        emphasis: {
+          itemStyle: {
+            shadowBlur: 10,
+            shadowOffsetX: 0,
+            shadowColor: 'rgba(0, 0, 0, 0.5)'
+          }
+        }
+      }
+    ]
+  };
+
+  myChart.setOption(option);
+</script>
+
+</html>
