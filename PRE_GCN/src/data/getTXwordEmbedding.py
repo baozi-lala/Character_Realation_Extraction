@@ -80,11 +80,13 @@ def baidu_baike_word_vector(file_path, word_vector_name):
     word2vec_list = []
     word2id = {}
     print("start")
+    word2id['BLANK'] = 0
+    word2vec_list.append(np.asarray(np.random.normal(size=300, loc=0, scale=0.05), 'f'))
     with open(file_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()[1:]
         for i,line in enumerate(lines):
             values = line.split()
-            word2id[values[0]] = i
+            word2id[values[0]] = i+1
             word2vec_list.append(np.asarray(values[1:], dtype='float32'))
     word2id['UNK']=len(word2id)
     word2vec_list.append(np.asarray(np.random.normal(size=300, loc=0, scale=0.05), 'f'))

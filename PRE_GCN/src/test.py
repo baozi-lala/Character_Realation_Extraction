@@ -9,16 +9,13 @@ __mtime__ = "2021/1/17"
 import os
 import scipy.sparse as sp
 
-from past.builtins import raw_input
-from tabulate import tabulate
 import itertools
-import numpy as np
 import pickle as pkl
 import torch
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import re
+
 from pyhanlp import *
 from collections import defaultdict
 
@@ -36,12 +33,12 @@ from utils.adj_utils import sparse_mxs_to_torch_sparse_tensor, convert_3dsparse_
 from data.converter import concat_examples
 EntityInfo = recordtype('EntityInfo', 'id name sentNo pos postotal')
 PairInfo = recordtype('PairInfo', 'type cross intrain')
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+
 class PrototypeSystem(object):
-    def __init__(self):
+    def __init__(self,remodelfile= './results/docpre-dev-merge/docred_full/'):
         self.NLPTokenizer = JClass("com.hankcs.hanlp.tokenizer.NLPTokenizer")
         self.ner = ['nr', 'nrf', 'nrj']
+        self.loadmodel(remodelfile)
     # 分句
     def cut_sent(self,para):
         para = re.sub('([﹒﹔﹖﹗．。！？\?])([^”’])', r"\1\n\2", para)  # 单字符断句符
@@ -172,34 +169,34 @@ class PrototypeSystem(object):
         if parameters['gpu'] != -1:
             model_0.to(self.device)
         return model_0
-    def test(self,data):
+    def loadmodel(self,remodelfile = './results/docpre-dev-merge/docred_full/'):
         print('\nLoading mappings ...')
-        remodelfile='./results/docpre-dev-merge/docred_full-bz32/'
         self.train_loader = load_mappings(remodelfile)
 
         parameters = self.train_loader.params
         parameters['intrain'] = False
-        with open(os.path.join(parameters['output_path'], "train_finsh.ok"), 'r') as f:
+        with open(os.path.join(remodelfile, "train_finsh.ok"), 'r') as f:
             for line in f.readlines():
                 input_theta = line.strip().split("\t")[1]
                 break
         parameters['input_theta'] = float(input_theta)
-        self.device = torch.device("cuda" if parameters['gpu'] != -1 else "cpu")
-        new_data=self.dataprocess(data)
-        new_data = self.convert_batch(new_data)
+        # parameters['doc_node'] = False
+        # self.device = torch.device("cuda" if parameters['gpu'] != -1 else "cpu")
+        self.device = torch.device("cpu")
+        parameters['gpu']=-1
         # parameters['context_att']=False
-        model = self.init_model(parameters)
-        model.load_state_dict(torch.load(os.path.join(remodelfile, 're.model'),
-                                             map_location=model.device))
-        torch.no_grad()
-        model.eval()  # 预测模式
-        preds, select, pred_pairs= model(new_data)
-        test_result=[]
-        for rel_id,pair in zip(preds.cpu().numpy().tolist(),data['lables']):
-            rel=self.train_loader.index2rel[rel_id]
+        print('\nLoading model ...')
+        self.model = self.init_model(parameters)
+        self.model.load_state_dict(torch.load(os.path.join(remodelfile, 're.model'),
+                                         map_location=self.device))
 
-            test_result.append((data['entities'][pair['p1']]['name'], data['entities'][pair['p2']]['name'], rel))
-        return test_result
+    def test(self,new_data):
+        torch.no_grad()
+        self.model.eval()  # 预测模式
+
+        preds, select, pred_pairs= self.model(new_data)
+
+        return preds
 
 
     def dataprocess(self, data):
@@ -250,7 +247,9 @@ class PrototypeSystem(object):
         # nodes += nodes_mention
         for s, sentence in enumerate(doc):
             nodes += [[s, s, [s], [s], [s], 2]]
-        # entity：0,sentence:2
+        if self.train_loader.params['doc_node']:
+            nodes += [[0, 0, [0], [0], [0], 3]]
+        # entity：0,sentence:2,doc:1
         nodes = np.array(nodes, dtype=object)
 
         ent = np.array(ent, dtype=object)
@@ -330,7 +329,11 @@ class PrototypeSystem(object):
         adjacency = np.full((r_id.shape[0], r_id.shape[0]), 0, 'i')
         # 5：mention-mention, entity-mention, sentence-sentence, mention-sentence, entity-sentence
         # 3：entity-entity, sentence-sentence, entity-sentence
-        rgcn_adjacency = np.full((3, r_id.shape[0], r_id.shape[0]), 0.0)
+        # 5：entity-entity, entity-document,sentence-sentence, entity-sentence,sentence-document
+        cnt = 3
+        if self.train_loader.params['doc_node']:
+            cnt = 5
+        rgcn_adjacency = np.full((cnt, r_id.shape[0], r_id.shape[0]), 0.0)
         mask = np.full((r_id.shape[0], r_id.shape[0]), False)
         for i in range(r_id.shape[0]):
             for j in range(r_id.shape[0]):
@@ -343,9 +346,14 @@ class PrototypeSystem(object):
             rgcn_adjacency[0])
 
         # sentence-sentence (direct + indirect)
-        # todo 去掉indirect
-        adjacency = np.where((r_id == 2) & (c_id == 2), 1, adjacency)
-        rgcn_adjacency[1] = np.where((r_id == 2) & (c_id == 2), 1, rgcn_adjacency[2])
+        s_mask = np.full((r_id.shape[0], r_id.shape[0]), False)
+        for i in range(r_id.shape[0]):
+            for j in range(r_id.shape[0]):
+                s_mask[i][j] = True if abs(r_Sid[i][j][0] - c_Sid[i][j][0]) <= 1 else False
+        adjacency = np.where((r_id == 2) & (c_id == 2) & s_mask, 1, adjacency)
+        rgcn_adjacency[1] = np.where((r_id == 2) & (c_id == 2) & s_mask, 1, rgcn_adjacency[1])
+        # adjacency = np.where((r_id == 2) & (c_id == 2), 1, adjacency)
+        # rgcn_adjacency[1] = np.where((r_id == 2) & (c_id == 2), 1, rgcn_adjacency[1])
 
         # entity-sentence
         adjacency = np.where(np.logical_or(r_id == 0, r_id == 3) & (c_id == 2) & mask, 1,
@@ -354,17 +362,33 @@ class PrototypeSystem(object):
         rgcn_adjacency[2] = np.where(np.logical_or(r_id == 0, r_id == 3) & (c_id == 2) & mask, 1,
                                      rgcn_adjacency[2])  # belongs to sentence
         rgcn_adjacency[2] = np.where((r_id == 2) & np.logical_or(c_id == 0, c_id == 3) & mask, 1, rgcn_adjacency[2])
+        if self.train_loader.params['doc_node']:
+            # entity-document
+            adjacency = np.where((r_id == 0) & (c_id == 3), 1, adjacency)
+            adjacency = np.where((r_id == 3) & (c_id == 0), 1, adjacency)
+            rgcn_adjacency[3] = np.where((r_id == 0) & (c_id == 3), 1, rgcn_adjacency[3])  # belongs to entity
+            rgcn_adjacency[3] = np.where((r_id == 3) & (c_id == 0), 1, rgcn_adjacency[3])
 
-        rgcn_adjacency = sparse_mxs_to_torch_sparse_tensor([sp.coo_matrix(rgcn_adjacency[i]) for i in range(3)])
+            # sentence-document
+            adjacency = np.where((r_id == 2) & (c_id == 3), 1, adjacency)
+            adjacency = np.where((r_id == 3) & (c_id == 2), 1, adjacency)
+            rgcn_adjacency[4] = np.where((r_id == 2) & (c_id == 3), 1, rgcn_adjacency[4])  # belongs to entity
+            rgcn_adjacency[4] = np.where((r_id == 3) & (c_id == 2), 1, rgcn_adjacency[4])
+
+        rgcn_adjacency = sparse_mxs_to_torch_sparse_tensor([sp.coo_matrix(rgcn_adjacency[i]) for i in range(cnt)])
 
         # 全局pos的距离
         dist_dir_h_t = dist_dir_h_t[0: entity_size, 0:entity_size]
+        if self.train_loader.params['doc_node']:
+            sec = np.array([len(new_entities.items()), len(doc), 1, sum([len(s) for s in doc])])
+        else:
+            sec = np.array([len(new_entities.items()), len(doc), sum([len(s) for s in doc])])
+
         new_data = [{'ents': ent ,'rels': trel, 'multi_rels': relation_multi_label,
                        'dist_dir': dist_dir_h_t, 'text': doc, 'info': rel_info,
                        'adjacency': adjacency, 'rgcn_adjacency': rgcn_adjacency,
-                       'section': np.array(
-                           [len(new_entities.items()), len(doc), sum([len(s) for s in doc])]),
-                       'word_sec': np.array([len(s) for s in doc]),
+                     'section': sec,
+                     'word_sec': np.array([len(s) for s in doc]),
                        'words': np.hstack([np.array(s) for s in doc])}]
 
         return new_data
@@ -407,35 +431,45 @@ class PrototypeSystem(object):
         ent_count, sent_count, word_count = 0, 0, 0
         full_text = []
 
-        ent_count_sep=0
+        ent_count_sep = 0
         for i, b in enumerate(batch):
             # print("doc",i)
             current_text = list(itertools.chain.from_iterable(b['text']))
             full_text += current_text
+            # new_batch['bert_token'] += [b['bert_token']]
+            # new_batch['bert_mask'] += [b['bert_mask']]
+            # new_batch['bert_starts'] += [b['bert_starts']]
 
             temp = []
-            temp_sep=[]
+            temp_sep = []
             for e in b['ents']:
-                temp += [[e[0] + ent_count, e[1], [i + word_count for i in e[4]], [i + sent_count for i in e[2]], e[5],[i for i in e[3]]]]  # id  name_id pos sent_id, type
-                for i,j in zip(e[4],e[2]):
-                    temp_sep += [[e[0] + ent_count_sep, e[1], i + word_count, j + sent_count,e[5]]]  # id  name_id pos sent_id, type
+                temp += [[e[0] + ent_count, e[1], [i + word_count for i in e[4]], [i + sent_count for i in e[2]], e[5],
+                          [i for i in e[3]]]]  # id  name_id pos sent_id, type,pos
+                for i, j in zip(e[4], e[2]):
+                    temp_sep += [[e[0] + ent_count_sep, e[1], i + word_count, j + sent_count,
+                                  e[5]]]  # id  name_id pos sent_id, type
             # id, name_id,pos,sent_id,type
 
-            new_batch['entities'] += [np.array(temp,dtype=object)]
+            new_batch['entities'] += [np.array(temp, dtype=object)]
             new_batch['entities_sep'] += [np.array(temp_sep)]
             word_count += sum([len(s) for s in b['text']])
             if len(temp) > 0:
                 ent_count = max([t[0] for t in temp]) + 1
             if len(temp_sep) > 0:
-                ent_count_sep=max([t[0] for t in temp_sep]) + 1
+                ent_count_sep = max([t[0] for t in temp_sep]) + 1
             sent_count += len(b['text'])
         # print(ent_count)
         # print(word_count)
         new_batch['entities'] = np.concatenate(new_batch['entities'], axis=0)  # 50, 5
-        new_batch['entities_sep'] = np.concatenate(new_batch['entities_sep'], axis=0)
-        new_batch['entities_sep'] = torch.as_tensor(new_batch['entities_sep']).long().to(self.device)
+        # new_batch['entities_sep'] = np.concatenate(new_batch['entities_sep'], axis=0)
+        # new_batch['entities_sep'] = torch.as_tensor(new_batch['entities_sep']).long().to(self.device)
+        # new_batch['bert_token'] = torch.as_tensor(np.concatenate(new_batch['bert_token'])).long().to(self.device)
+        # new_batch['bert_mask'] = torch.as_tensor(np.concatenate(new_batch['bert_mask'])).long().to(self.device)
+        # new_batch['bert_starts'] = torch.as_tensor(np.concatenate(new_batch['bert_starts'])).long().to(self.device)
 
-        batch_ = [{k: v for k, v in b.items() if (k!='ents' and k != 'info' and k != 'text' and k != 'rgcn_adjacency')} for b in batch]
+        batch_ = [
+            {k: v for k, v in b.items() if (k != 'ents' and k != 'info' and k != 'text' and k != 'rgcn_adjacency')} for
+            b in batch]
         converted_batch = concat_examples(batch_, device=self.device, padding=-1)
 
         converted_batch['adjacency'][converted_batch['adjacency'] == -1] = 0
@@ -452,7 +486,6 @@ class PrototypeSystem(object):
         new_batch['multi_relations'] = converted_batch['multi_rels'].float().clone()
         new_batch['predict']=False
         if save:
-
             # print(new_batch['section'][:, 0].sum(dim=0).item())
             # print(new_batch['section'][:, 0].max(dim=0)[0].item())
             # for b in batch:
@@ -485,17 +518,21 @@ class PrototypeSystem(object):
         sentences=self.cut_sent(text)
         # 2.分词，人名识别
         data = self.NLP_segment(sentences)
-        # 3.预测
-        test_result=self.test(data)
-        print('输入文本:')
-        print(text)
-        print('结果:')
-        print(test_result)
-        return test_result
+        # 3.预处理
+        new_data = self.dataprocess(data)
+        new_data = self.convert_batch(new_data)
+        # 4.预测
+        preds=self.test(new_data)
+        test_result = []
+        for rel_id, pair in zip(preds.cpu().numpy().tolist(), data['lables']):
+            rel = self.train_loader.index2rel[rel_id]
+            test_result.append((pair['p1'], pair['p2'], rel))
+        return data['entities'],test_result
 
 if __name__ == '__main__':
     p=PrototypeSystem()
     # text = raw_input("请输入：")
     text="陆天明和陆星儿兄妹都是著名作家，陆天明的儿子陆川却干上了电影编导这一行，最近，陆天明正在北京埋头创作他的又一部长篇小说。\n陆天明是上海籍作家，在上海延安中学读的初中，50年代末，怀着做新中国第一代有文化农民的美好愿望，和一帮热血青年来到安徽太平县山区（现属黄山市），那时他才14岁，是知青中年龄最小的一位。第2年当了乡中心小学的教师。那几年正是国家困难时期，十六岁\n最得意的作品是《泥日》\n记者：您写了《苍天在上》、《大雪无痕》和《省委书记》的“反腐三部曲”以后，读者和观众们称呼您为“反腐作家”，您对此有何看法？\n陆天明：现在一提我陆天明，就说我是“反腐作家”，这个称呼当然光荣，但不够全面。我创作了这么多年，涉及的领域很广，尤其以知青题材和西部作品为多。可以说，我的作品中，被文学圈最看重的，还不是我的那些反腐作品，而是我那部长篇小说《泥日》，当时发表在1990年的《收获》杂志上。它在现代派的写作手法，思考的深度、艺术表现的丰富性，对人物刻画的复杂性，体现自我风格的多样性方面，可以说是我所有作品中最有探索性的一部。因为没有拍成影视，影响不如后来的作品大。今年，春风出版社为我出版《陆天明文集》。我之所以同意出文集，就是想让大家比较全面地了解我，了解我的作品。\n新长篇已经酝酿多年\n记者：您正在写的作品是否就是您创作第三阶段的开始？\n陆天明：是的。因为作家不是政治家经济家，不是军事家科学家，作家对现实生活的参与，只能用“文学作品”。既然是“文学作品”，就要具有非常独到的艺术个性和手法，就应该具有高度的文学性。也就是说，你必须通过真正的文学的样式去参与。我的第三阶段的尝试，就是要让自己的创作既非常具有当代性，又能“非常文学”“非常艺术”“非常个性化”，在这个“两结合”上做点努力。也就是说，尝试着把自己前20年的东西捏合起来，去把自己的创作推进到一个新的层次。这部新长篇，由于正在写，所以还不能说它的故事到底会发展成什么样子。总之，这是发生在中国西部地区的一部人性题材的小说。我已经酝酿很多年了。做过多方面的准备。也曾经用它的一部分情节，写过一部话剧，前年由中国青年艺术剧院在北京演出过。从这一点，你就可以看出，为了写好这部小说，我是多么“努力”了。虽然小说的大背景放在西部，但可能还会写到上海……\n父亲眼中的儿子\n记者：听你的妹妹陆星儿说，陆川的《寻枪》剧本磨了2年，改了十几遍。你们父子是否有合作创作一部作品的可能？\n陆天明：父子联手？当然有这个想法啊，还要等以后有合适的时机，合适的题材吧。我想会有这一天的。陆川已经从高原外景地回到北京，第二部作品做到什么程度还不知道，如果说是为了做一点电影和文学现象的研究和调查，留下一笔社会的精神财富，现在还不到那个火候。等以后他把脚踩稳了，我们再说好不好？对于他来说，最重要的是拿出新作品。目前还不是炒作的时候。反正，我们陆家兄妹也好，父子也好，目前最重要的是继续埋头写新作品，老老实实地写……\n陆川，毕业于南京解放军政治学院英语系，后考进北京电影学院导演系研究生班。英语功底好，曾为央视翻译多部外国电视剧。《寻枪》原来是个小说本，陆川花了2年，改了十二稿，磨成电影剧本。陆川跑了几家电影公司，都因其“名不见经传”被婉拒。后冒昧寄给姜文，姜文认定是个好剧本，亲自出演男主角。第2部新片《巡山》表现一群野生藏羚羊守卫者在艰难环境中的一种平静的生命姿态。为此，去年底陆川特意到零下30℃、海拔5000米以上的可可西里腹地作实地考察。本报记者吴申燕"
-    p.predict(text)
+    text1="张三的哥哥李四是好人."
+    p.predict(text1)
 

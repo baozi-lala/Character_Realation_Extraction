@@ -12,8 +12,7 @@ from data.loader import DataLoader, ConfigLoader
 from nnet.trainer import Trainer
 from utils.utils import setup_log, load_model, load_mappings,plot_learning_curve
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 def set_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)

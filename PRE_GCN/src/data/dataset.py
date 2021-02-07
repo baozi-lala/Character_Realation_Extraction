@@ -236,8 +236,14 @@ class DocRelationDataset:
 
             # sentence-sentence (direct + indirect)
             # todo 去掉indirect
-            adjacency = np.where((r_id == 2) & (c_id == 2), 1, adjacency)
-            rgcn_adjacency[1] = np.where((r_id == 2) & (c_id == 2), 1, rgcn_adjacency[1])
+            s_mask = np.full((r_id.shape[0], r_id.shape[0]), False)
+            for i in range(r_id.shape[0]):
+                for j in range(r_id.shape[0]):
+                    s_mask[i][j] = True if abs(r_Sid[i][j][0]-c_Sid[i][j][0])<=1 else False
+            adjacency = np.where((r_id == 2) & (c_id == 2)&s_mask, 1, adjacency)
+            rgcn_adjacency[1] = np.where((r_id == 2) & (c_id == 2)&s_mask, 1, rgcn_adjacency[1])
+            # adjacency = np.where((r_id == 2) & (c_id == 2), 1, adjacency)
+            # rgcn_adjacency[1] = np.where((r_id == 2) & (c_id == 2), 1, rgcn_adjacency[1])
 
             # entity-sentence
             adjacency = np.where(np.logical_or(r_id == 0, r_id == 3) & (c_id == 2) & mask, 1, adjacency)  # belongs to sentence

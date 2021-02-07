@@ -10,49 +10,6 @@ EntityInfo = recordtype('EntityInfo', 'id name sentNo pos postotal')
 PairInfo = recordtype('PairInfo', 'type cross intrain')
 
 
-def chunks(l, n, sen_len=None, word_len=None):
-    """
-    Successive n-sized chunks from l.
-    @:param sen_len
-    @:param word_len
-    """
-    res = []
-    # print(str(l).encode(encoding='UTF-8', errors='strict'))
-    # print(len(l))
-    for i in range(0, len(l), n):
-        # print(str([l[i:i + n]]).encode(encoding='UTF-8', errors='strict'))
-        assert len(l[i:i + n]) == n
-        res += [l[i:i + n]]
-    if sen_len is not None:
-        for i in res:
-            a = i[10]
-            a_word_len_start = i[8]  # mention start position
-            a_word_len_end = i[9]
-            b = i[16]
-            b_word_len_start = i[14]
-            b_word_len_end = i[15]
-            for x in a_word_len_start.split(':'):
-                assert int(x) <= word_len-1, print(l, '\t', word_len)
-            for x in b_word_len_start.split(':'):
-                assert int(x) <= word_len-1, print(l, '\t', word_len)
-            for x in a_word_len_end.split(':'):
-                assert int(x) <= word_len, print(l, '\t', word_len)
-            for x in b_word_len_end.split(':'):
-                assert int(x) <= word_len, print(l, '\t', word_len)
-            for x in a.split(':'):
-                assert int(x) <= sen_len-1, print(l, '\t', word_len)
-            for x in b.split(':'):
-                assert int(x) <= sen_len-1, print(l, '\t', word_len)
-
-            i[8] = ':'.join([str(min(int(x), word_len - 1)) for x in a_word_len_start.split(':')])
-            i[14] = ':'.join([str(min(int(x), word_len - 1)) for x in b_word_len_start.split(':')])
-            i[9] = ':'.join([str(min(int(x), word_len)) for x in a_word_len_end.split(':')])
-            i[15] = ':'.join([str(min(int(x), word_len)) for x in b_word_len_end.split(':')])
-
-            i[10] = ':'.join([str(min(int(x), sen_len - 1)) for x in a.split(':')])
-            i[16] = ':'.join([str(min(int(x), sen_len - 1)) for x in b.split(':')])
-
-    return res
 
 
 def overlap_chunk(chunk=1, lst=None):
