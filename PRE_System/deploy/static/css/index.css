@@ -1,0 +1,9 @@
+.title {
+    text-align: center;
+  }
+
+.form-control {
+              border:1px solid rgba(63, 47, 63, 0.38);
+              /*background-color:#FFCCFF;*/
+              overflow:visible;
+         }

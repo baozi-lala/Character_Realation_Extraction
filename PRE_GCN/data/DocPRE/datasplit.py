@@ -8,6 +8,10 @@ __mtime__ = "2021/1/3"
 """
 import json
 import os
+from collections import defaultdict
+import matplotlib.pyplot as plt
+
+import numpy as np
 def split_data():
     with open('processed/data_v2.json', 'r', encoding='utf-8') as f:
         json_data = []
@@ -67,7 +71,40 @@ def convertdataset(data_name):
             data.append(item)
     out_path = os.path.join("dataset/",data_name+ '.json')
     json.dump(data, open(out_path, "w"),ensure_ascii=False)
+def data_statics():
+    with open("processed/data_v2.json", 'r', encoding='utf-8') as infile:
+        sen_list=[]
+        word_list=[]
+        for line in infile.readlines():
+            line = json.loads(line)
+            text = line['sentences']
+            if not text:
+                continue
+            sen_len = len(text)
+            word_len = sum([len(t) for t in text])
+            sen_list.append(sen_len)
+            word_list.append(word_len)
+        print(min(sen_list),max(sen_list),np.mean(sen_len))
+        print(min(word_list),max(word_list),np.mean(word_list))
+        draw_hist(sen_list, '句子数统计', '句子长度', '统计个数')  # 直方图展示
+        draw_hist(word_list, '单词长度统计', '单词长度', '统计个数')
+# 参数依次为list,抬头,X轴标签,Y轴标签,XY轴的范围
+def draw_hist(myList,Title,Xlabel,Ylabel):
+    # plt.rcParams['font.sans-serif'] = ['SimHei']  # 显示中文标签
+    # plt.rcParams['axes.unicode_minus'] = False  # 解决负号“-”显示为方块的问题
+    # Mac系统设置中文字体支持
+    plt.rcParams["font.family"] = 'Arial Unicode MS'
+    plt.hist(myList,100)
+    plt.xlabel(Xlabel)
+    plt.ylabel(Ylabel)
+    plt.title(Title)
+    plt.show()
+
+
+
+
 if __name__ == '__main__':
-    convertdataset("train1_v2")
-    convertdataset("dev1_v2")
-    convertdataset("test1_v2")
+    # convertdataset("train1_v2")
+    # convertdataset("dev1_v2")
+    # convertdataset("test1_v2")
+    data_statics()

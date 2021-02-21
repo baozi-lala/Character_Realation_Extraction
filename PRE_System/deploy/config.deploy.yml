@@ -1,0 +1,37 @@
+############################################################
+# config.yml
+# Configurations of Web app deployment
+# Author: HearyShen
+# Date: 2021.1.26
+# Comments: 
+############################################################
+
+# Basic configurations
+# basic configurations for Flask app
+basic: 
+  flask:
+    host: '0.0.0.0'
+    port: 5000
+    debug: False
+  topk: 3
+
+
+
+# Dataset configurations
+# dataset's task, root path 
+data:
+  vocabulary: D:\Datasets\SNLI_VE\vocabulary.stoi.pkl
+
+
+# Model configurations
+# model's architecture and keyword-arguments
+model:
+  arch: venet200524a
+  kwargs:
+    word_embedding_path: D:/Datasets/SNLI_VE/glove.840B.300d.embedding.pkl
+    freeze_embedding: True
+    num_classes: 3
+    feature_dim: 300
+    nhead: 6
+    num_layers: 3
+    dropout: 0
