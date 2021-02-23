@@ -12,7 +12,7 @@ from data.loader import DataLoader, ConfigLoader
 from nnet.trainer import Trainer
 from utils.utils import setup_log, load_model, load_mappings,plot_learning_curve
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 def set_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
@@ -81,6 +81,9 @@ def main():
 
     if parameters['train']:
         parameters['intrain']=True
+        parameters['lr'] = 0.001
+        parameters['remodelfile'] = parameters['folder']+"/docred_full-lr0.001"
+        parameters['output_path'] = parameters['remodelfile']
         train(parameters)
     with open(os.path.join(parameters['output_path'], "train_finsh.ok"), 'r') as f:
         for line in f.readlines():
@@ -88,14 +91,14 @@ def main():
             break
     if parameters['test']:
         parameters['intrain'] = True
-        parameters['test_data']='../data/DocPRE/processed/dev1_v2.json'
+        parameters['test_data']='../data/DocPRE/processed/dev1_v3.json'
         parameters['save_pred']='dev_test'
         parameters['input_theta']=float(input_theta)
         # parameters['remodelfile']='./results/docpre-dev/docred_basebert_full/'
         _test(parameters)
     if parameters['test']:
         parameters['intrain'] = False
-        parameters['test_data'] = '../data/DocPRE/processed/test1_v2.json'
+        parameters['test_data'] = '../data/DocPRE/processed/test1_v3.json'
         parameters['save_pred'] = 'test'
         parameters['input_theta'] = float(input_theta)
         # parameters['remodelfile'] = './results/docpre-dev/docred_basebert_full/'

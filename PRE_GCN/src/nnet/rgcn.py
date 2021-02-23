@@ -12,7 +12,6 @@ class RGCN_Layer(nn.Module):
         self.layers = num_layers
         self.device = torch.device("cuda" if params['gpu'] != -1 else "cpu")
         self.mem_dim = mem_dim
-        # todo 这个是啥？
         self.relation_cnt = relation_cnt
         self.in_dim = in_dim
 

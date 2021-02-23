@@ -15,32 +15,6 @@ from test import PrototypeSystem
 app = flask.Flask(__name__)
 
 UNKNOWN_TOKEN_ID = 1
-def parse_args():
-    argparser = argparse.ArgumentParser(description='Forestry Security Server')
-    argparser.add_argument(
-        '-c',
-        '--config',
-        default='config.deploy.yml',
-        type=str,
-        metavar='PATH',
-        help='configuration file path')
-    argparser.add_argument(
-        '-r',
-        '--resume',
-        default='',
-        type=str,
-        metavar='PATH',
-        help='path to latest checkpoint (default: none)')
-    argparser.add_argument(
-        '-d',
-        '--device',
-        default='cuda',
-        choices=('cpu', 'cuda'),
-        type=str,
-        metavar='DEVICE',
-        help='computing device (default: cuda)')
-    args = argparser.parse_args()
-    return args
 
 
 @app.route("/hello", methods=["GET"])
@@ -138,4 +112,4 @@ if __name__ == '__main__':
     # logger.info(f"Loading Flask app with specs: {flask_kwargs}.")
     # app.run(**flask_kwargs if flask_kwargs else {})
     p=PrototypeSystem(remodelfile='../../PRE_GCN/src/results/docpre-dev-merge/docred_full/')
-    app.run(host='0.0.0.0', port=5001, debug = True)
+    app.run(host='0.0.0.0', port=5001, debug = False)

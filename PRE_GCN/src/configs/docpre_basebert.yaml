@@ -3,8 +3,9 @@ dataset: PRE_data
 
 global_rep: true
 local_rep: false
-context_att: false
-doc_node: false
+context_att: true
+doc_node: true
+more_gru: true
 
 query: global # global
 
@@ -66,10 +67,10 @@ gru_dropout: 0.5  # 失活概率：0.5
 pretrained_model: 'Bert'
 
 # data based
-train_data: ../data/DocPRE/processed/train1_v2.json
-test_data: ../data/DocPRE/processed/dev1_v2.json
+train_data: ../data/DocPRE/processed/train1_v3.json
+test_data: ../data/DocPRE/processed/dev1_v3.json
 embeds: ../data/DocPRE/word_vector/sgns.merge.word
-folder: ../results/docpre-dev-merge
+folder: ../results/docpre-dev-merge-new
 save_pred: dev
 
 # options (chosen from parse input otherwise false)
@@ -80,11 +81,10 @@ early_stop: true
 save_model: true
 freeze_words: true
 
-more_gru: true
 # extra
 seed: 0
 shuffle_data: true
-label2ignore: unknown
+label2ignore: NA
 primary_metric: micro_f
 #direction: l2r+r2l
 gpu: 0

@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 def split_data():
-    with open('processed/data_v2.json', 'r', encoding='utf-8') as f:
+    with open('processed/data_v3.json', 'r', encoding='utf-8') as f:
         json_data = []
         for line in f.readlines():
             dic = json.loads(line)
@@ -24,18 +24,30 @@ def split_data():
         train=json_data[:pos1]
         dev = json_data[pos1+1:pos2]
         test = json_data[pos2+1:]
-        with open('processed/train1_v2.json', 'w', encoding='utf-8') as f1:
+        with open('processed/train1_v3.json', 'w', encoding='utf-8') as f1:
             for i in train:
                 json.dump(i, f1, ensure_ascii=False)
                 f1.write("\n")
-        with open('processed/dev1_v2.json', 'w', encoding='utf-8') as f1:
+        with open('processed/dev1_v3.json', 'w', encoding='utf-8') as f1:
             for i in dev:
                 json.dump(i, f1, ensure_ascii=False)
                 f1.write("\n")
-        with open('processed/test1_v2.json', 'w', encoding='utf-8') as f1:
+        with open('processed/test1_v3.json', 'w', encoding='utf-8') as f1:
             for i in test:
                 json.dump(i, f1, ensure_ascii=False)
                 f1.write("\n")
+
+def delete_qita(data_name):
+    input_file=os.path.join("processed/", data_name+ '.json')
+    with open(input_file, 'r', encoding='utf-8') as infile:
+        for line in infile.readlines():
+            line = json.loads(line)
+            for i,l in enumerate(line['lables']):
+                if l['r']=="其他" or l['r']=="unknown":
+                    line['lables'][i]['r'] = "NA"
+            with open('processed/data_v3.json', 'a+', encoding='utf-8') as f:
+                json.dump(line, f, ensure_ascii=False)
+                f.write("\n")
 
 def convertdataset(data_name):
     input_file=os.path.join("processed/", data_name+ '.json')
@@ -107,4 +119,5 @@ if __name__ == '__main__':
     # convertdataset("train1_v2")
     # convertdataset("dev1_v2")
     # convertdataset("test1_v2")
-    data_statics()
+    # delete_qita("data_v2")
+    split_data()

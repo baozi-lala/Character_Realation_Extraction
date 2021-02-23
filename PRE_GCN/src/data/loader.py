@@ -31,7 +31,7 @@ class ConfigLoader:
 
         parser.add_argument('--config_file', type=str,default='./configs/docpre_basebert.yaml')
         parser.add_argument('--output_path', type=str, default='./results/docpre-dev-merge/docred_full_sen_nodocnode/')
-        parser.add_argument('--test_data', type=str,default='../data/DocPRE/processed/dev1_v2.json')
+        parser.add_argument('--test_data', type=str,default='../data/DocPRE/processed/dev1_v3.json')
         parser.add_argument('--save_pred', type=str,default='dev')
 
         parser.add_argument('--batch', type=int, default=8, help='batch size')
@@ -105,7 +105,7 @@ class DataLoader:
 
         self.documents, self.entities, self.pairs = OrderedDict(), OrderedDict(), OrderedDict()
 
-        self.dis2idx_dir = np.zeros((2000), dtype='int64') # distance feature
+        self.dis2idx_dir = np.zeros((1500), dtype='int64') # distance feature
         self.dis2idx_dir[1] = 1
         self.dis2idx_dir[2:] = 2
         self.dis2idx_dir[4:] = 3

@@ -93,7 +93,10 @@ class GLRE(BaseModel):
             self.self_att = SelfAttention(input_dim, 1.0)
             input_dim = input_dim * 2
         if self.more_gru:
-            input_dim=input_dim+params['output_gru']
+            if not params['global_rep']:
+                input_dim = params['output_gru']
+            else:
+                input_dim=input_dim+params['output_gru']
         self.mlp_layer = params['mlp_layers']
         if self.mlp_layer>-1:
             hidden_dim = params['mlp_dim']
@@ -316,7 +319,10 @@ class GLRE(BaseModel):
         # 待预测的实体对
         select, _ = self.select_pairs(nodes_info, (r_idx, c_idx),self.device)
         if self.more_gru:
-            graph_select = torch.cat((graph_select, output_gru), dim=3)
+            if not self.global_rep:
+                graph_select = torch.cat((output_gru,), dim=3)
+            else:
+                graph_select = torch.cat((graph_select, output_gru), dim=3)
         graph_select = graph_select[select]
         if self.mlp_layer>-1:
             graph_select = self.out_mlp(graph_select)
