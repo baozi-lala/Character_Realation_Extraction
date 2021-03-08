@@ -12,7 +12,7 @@ from data.loader import DataLoader, ConfigLoader
 from nnet.trainer import Trainer
 from utils.utils import setup_log, load_model, load_mappings,plot_learning_curve
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 def set_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
@@ -81,8 +81,8 @@ def main():
 
     if parameters['train']:
         parameters['intrain']=True
-        parameters['lr'] = 0.001
-        parameters['remodelfile'] = parameters['folder']+"/docred_full-lr0.001"
+        # parameters['lr'] = 0.0001
+        parameters['remodelfile'] = parameters['folder']+"/docred_full-bertserver"
         parameters['output_path'] = parameters['remodelfile']
         train(parameters)
     with open(os.path.join(parameters['output_path'], "train_finsh.ok"), 'r') as f:

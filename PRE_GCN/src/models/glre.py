@@ -21,18 +21,6 @@ class GLRE(BaseModel):
         self.more_gru = params['more_gru']
         self.doc_node = params['doc_node']
 
-        # if self.more_lstm:
-        #     if 'bert-large' in params['pretrain_l_m'] or 'albert-large' in params['pretrain_l_m']:
-        #         lstm_input = 1024
-        #     elif 'bert-base-chinese' in params['pretrain_l_m'] or 'albert-base' in params['pretrain_l_m']:
-        #         lstm_input = 768
-        #     elif 'albert-xlarge' in params['pretrain_l_m']:
-        #         lstm_input = 2048
-        #     elif 'albert-xxlarge' in params['pretrain_l_m']:
-        #         lstm_input = 4096
-        #     elif 'xlnet-large' in params['pretrain_l_m']:
-        #         lstm_input = 1024
-        # else:
         lstm_input = params['word_dim']
         self.encoder = EncoderLSTM(input_size=lstm_input,
                                    num_units=params['lstm_dim'],
@@ -41,23 +29,10 @@ class GLRE(BaseModel):
                                    dropout=params['drop_i'])
 
         pretrain_hidden_size = params['lstm_dim'] * 2
-        # if params['pretrain_l_m'] == 'bert-base-chinese' and params['pretrain_l_m']!='albert-base-v2':
-        #     if self.more_lstm:
-        #         pretrain_hidden_size = params['lstm_dim']*2
-        #     else:
-        #         pretrain_hidden_size = 768
-        #     if params['dataset']=='PRE_data' and os.path.exists('./bert-base-chinese'):
-        #         self.pretrain_lm = BertModel.from_pretrained('./bert-base-chinese/')
-        #     else:
-        #         self.pretrain_lm = BertModel.from_pretrained('bert-base-chinese') # bert-base-chinese
 
 
         self.pretrain_l_m_linear_re = nn.Linear(pretrain_hidden_size, params['lstm_dim'])
 
-        # if params['types']:
-        #     self.type_embed = EmbedLayer(num_embeddings=3,
-        #                                  embedding_dim=params['type_dim'],
-        #                                  dropout=0.0)
         # 第二部分模型结构
         if self.more_gru:
             gru_input_dim = params['lstm_dim']
@@ -77,14 +52,8 @@ class GLRE(BaseModel):
         else:
             input_dim = params['rgcn_hidden_dim'] * 2
 
-        # if params['local_rep']:
-        #     self.local_rep_layer = Local_rep_layer(params)
-        #     if not params['global_rep']:
-        #         input_dim = params['lstm_dim'] * 2
-        #     else:
-        #         input_dim += params['lstm_dim'] * 2
-        #
-        # gcn之后才加入dist？
+
+        # gcn之后才加入dist
         if params['finaldist']:
             input_dim += params['dist_dim'] * 2
 
@@ -288,15 +257,6 @@ class GLRE(BaseModel):
         relation_rep_h = nodes[:, r_idx]
         relation_rep_t = nodes[:, c_idx]
         # relation_rep = self.rgcn_linear_re(relation_rep)  # global node rep
-
-        # if self.local_rep:
-        #     entitys_pair_rep_h, entitys_pair_rep_t = self.local_rep_layer(batch['entities'], batch['section'], init_nodes, nodes)
-        #     if not self.global_rep:
-        #         relation_rep_h = entitys_pair_rep_h
-        #         relation_rep_t = entitys_pair_rep_t
-        #     else:
-        #         relation_rep_h = torch.cat((relation_rep_h, entitys_pair_rep_h), dim=-1)
-        #         relation_rep_t = torch.cat((relation_rep_t, entitys_pair_rep_t), dim=-1)
 
         if self.finaldist:
             dis_h_2_t = batch['distances_dir'] + 10

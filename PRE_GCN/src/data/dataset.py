@@ -84,9 +84,6 @@ class DocRelationDataset:
                 # assert len(sentence) == len(sent), '{}, {}'.format(len(sentence), len(sent))
                 doc += [sent]
                 sens_len.append(len(sent))
-            # todo 先把bert部分删掉
-            # bert_token, bert_mask, bert_starts = self.bert.subword_tokenize_to_ids(words)
-            bert_token, bert_mask, bert_starts =[],[],[]
 
             # ENTITIES [id, name, sen_id,pos1,pos2, node_type_id] + NODES [id, type, start, end, node_type_id]
             nodes = []
@@ -102,16 +99,9 @@ class DocRelationDataset:
                     ent_sen_mask[id_][int(sen_id)] = 1.0
             entity_size = len(nodes)
 
-            # nodes_mention = []
-            # for id_, (e, i) in enumerate(self.loader.entities[pmid].items()):
-            #     for sent_id, pos,pos2 in zip(i.sentNo.split(':'), i.pos.split(':'),i.postotal.split(':')):
-            #         # ent += [[id_, self.mappings.type2index[i.type.split(':')[0]], min(int(m1), bert_max_len-2), min(int(m2), bert_max_len-1), int(sent_id), 1]]
-            #         ent += [[id_, i.name, int(sent_id), int(pos),int(pos2), 1]]
-            #         nodes_mention += [[id_, i.name, int(sent_id), int(pos), int(pos2), 1]]
             ent+=nodes
             ent.sort(key=lambda x: x[0], reverse=False)
-            # nodes_mention.sort(key=lambda x: x[0], reverse=False)
-            # nodes += nodes_mention
+
 
             for s, sentence in enumerate(self.loader.documents[pmid]):
                 nodes += [[s, s, [s], [s],[s], 2]]
@@ -190,9 +180,6 @@ class DocRelationDataset:
             # dist feature
             dist_dir_h_t = np.full((r_id.shape[0], r_id.shape[0]), 0)
 
-            # # MM: mention-mention
-            # a_start = np.where(np.logical_or(r_id == 1, r_id == 3) & np.logical_or(c_id == 1, c_id == 3), r_pos2, -1)
-            # b_start = np.where(np.logical_or(r_id == 1, r_id == 3) & np.logical_or(c_id == 1, c_id == 3), c_pos2, -1)
 
 
 
@@ -277,7 +264,7 @@ class DocRelationDataset:
                            'adjacency': adjacency, 'rgcn_adjacency': rgcn_adjacency,
                            'section':sec ,
                            'word_sec': np.array([len(s) for s in doc]),
-                           'words': np.hstack([np.array(s) for s in doc]), 'bert_token': bert_token, 'bert_mask': bert_mask, 'bert_starts': bert_starts}]
+                           'words': np.hstack([np.array(s) for s in doc])}]
         print("miss_word", miss_word)
         print("miss_word_dev ", miss_word_dev)
         return self.data, self.prune_recall

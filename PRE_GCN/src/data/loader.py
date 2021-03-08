@@ -91,13 +91,10 @@ class DataLoader:
             self.word2index['UNK'] = len(self.word2index)
 
         else:
-            self.word2index = json.load(open(os.path.join(self.params['emb_method_file_path'], self.params['emb_method_file']+"_word2id.json"),'r', encoding='UTF-8'))
+            self.word2index = json.load(open(os.path.join(self.params['emb_method_file_path'], "word2id.json"),'r', encoding='UTF-8'))
         self.index2word = {v: k for k, v in self.word2index.items()}
         self.n_words, self.word2count = len(self.word2index.keys()), {'<UNK>': 1}
 
-        # self.name2index = json.load(open(os.path.join(self.base_file, 'name2id.json')))
-        # self.name2type = {v: k for k, v in self.name2index.items()}
-        # self.n_name, self.name2count = len(self.name2index.keys()), {}
 
         self.rel2index = json.load(open(os.path.join(self.base_file, 'rel2id.json'),'r', encoding='UTF-8'))
         self.index2rel = {v: k for k, v in self.rel2index.items()}
@@ -160,8 +157,6 @@ class DataLoader:
             self.rel2count[rel] += 1
 
     def add_word(self, word):
-        if self.params['lowercase']:
-            word = word.lower()
         if word not in self.word2index:
             self.word2index[word] = self.n_words
             self.word2count[word] = 1
@@ -216,11 +211,11 @@ class DataLoader:
 
     def load_doc_embeds(self):
         self.pre_embeds = OrderedDict()
-        word2id = json.load(open('../data/DocPRE/word_vector/processed/'+self.params["emb_method_file"]+"_word2id.json", 'r', encoding='utf-8'))
+        word2id = json.load(open('../data/DocPRE/word_vector/processed/'+"word2id.json", 'r', encoding='utf-8'))
         id2word = {id: word for word, id in word2id.items()}
         import numpy as np
-        vecs = np.load('../data/DocPRE/word_vector/processed/'+self.params["emb_method_file"]+'_vec.npy')
-        word_dim = self.params['word_dim']
+        vecs = np.load('../data/DocPRE/word_vector/processed/'+'vec.npy')
+        word_dim = 768
         for id in range(vecs.shape[0]):
             word = id2word.get(id)
             vec = vecs[id]

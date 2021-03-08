@@ -138,7 +138,8 @@ class Statics(object):
             for line in f:
                 line = line.strip().split('###')
                 key = line[-1]
-                dict_2[key] += 1
+                if key!='其他':
+                    dict_2[key] += 1
 
         label_list = []
         num_list = []
@@ -147,9 +148,9 @@ class Statics(object):
             num_list.append(v)
 
         # Mac系统设置中文字体支持
-        # plt.rcParams["font.family"] = 'Arial Unicode MS'
-        plt.rcParams['font.sans-serif'] = ['SimHei']  # 显示中文标签
-        plt.rcParams['axes.unicode_minus'] = False  # 解决负号“-”显示为方块的问题
+        plt.rcParams["font.family"] = 'Arial Unicode MS'
+        # plt.rcParams['font.sans-serif'] = ['SimHei']  # 显示中文标签
+        # plt.rcParams['axes.unicode_minus'] = False  # 解决负号“-”显示为方块的问题
 
         # 利用Matplotlib模块绘制条形图
         x = range(len(num_list))
@@ -182,10 +183,10 @@ class Statics(object):
             num_list.append(int(line[1]))
 
         # Mac系统设置中文字体支持
-        # plt.rcParams["font.family"] = 'Arial Unicode MS'
+        plt.rcParams["font.family"] = 'Arial Unicode MS'
 
-        plt.rcParams['font.sans-serif'] = ['SimHei']  # 显示中文标签
-        plt.rcParams['axes.unicode_minus'] = False  # 解决负号“-”显示为方块的问题
+        # plt.rcParams['font.sans-serif'] = ['SimHei']  # 显示中文标签
+        # plt.rcParams['axes.unicode_minus'] = False  # 解决负号“-”显示为方块的问题
         # 利用Matplotlib模块绘制条形图
         x = range(len(num_list))
         rects = plt.bar(x=x, height=num_list, width=0.6, color='blue', label="频数")
@@ -203,7 +204,7 @@ class Statics(object):
             plt.text(rect.get_x() + rect.get_width() / 2, height + 1, str(height), ha="center", va="bottom")
 
         # plt.show()
-        plt.savefig('pics/bar_chart2.png')
+        plt.savefig('pics/bar_chart1.png')
 
 # 获取人名库1
 def get_name_corpus():

@@ -3,7 +3,7 @@ dataset: PRE_data
 
 global_rep: true
 local_rep: false
-context_att: true
+context_att: false
 doc_node: true
 more_gru: true
 
@@ -14,10 +14,10 @@ lstm_encoder: false
 more_lstm: false
 
 # encoder
-emb_method: true # true for load_embeds
+emb_method: false # true for load_embeds
 emb_method_file: merge
 emb_method_file_path: ../data/DocPRE/word_vector/processed/
-word_dim: 300
+word_dim: 768
 lstm_dim: 256
 out_dim: 256
 #type_dim: 20

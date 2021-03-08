@@ -111,5 +111,5 @@ if __name__ == '__main__':
     # flask_kwargs = cfgs['basic'].get('flask')
     # logger.info(f"Loading Flask app with specs: {flask_kwargs}.")
     # app.run(**flask_kwargs if flask_kwargs else {})
-    p=PrototypeSystem(remodelfile='../../PRE_GCN/src/results/docpre-dev-merge/docred_full/')
+    p=PrototypeSystem(remodelfile='../../PRE_GCN/results/docpre-dev-merge-new/docred_full/')
     app.run(host='0.0.0.0', port=5001, debug = False)

@@ -545,7 +545,7 @@ class Trainer:
 
 
     def convert_batch(self, batch, istrain=False, save=False):
-        new_batch = {'entities': [],'entities_sep':[], 'bert_token': [], 'bert_mask': [], 'bert_starts': [], 'pos_idx': []}
+        new_batch = {'entities': [],'entities_sep':[], 'pos_idx': []}
         ent_count, sent_count, word_count = 0, 0, 0
         full_text = []
 
@@ -554,9 +554,6 @@ class Trainer:
             # print("doc",i)
             current_text = list(itertools.chain.from_iterable(b['text']))
             full_text += current_text
-            new_batch['bert_token'] += [b['bert_token']]
-            new_batch['bert_mask'] += [b['bert_mask']]
-            new_batch['bert_starts'] += [b['bert_starts']]
 
             temp = []
             temp_sep=[]
@@ -579,9 +576,6 @@ class Trainer:
         new_batch['entities'] = np.concatenate(new_batch['entities'], axis=0)  # 50, 5
         # new_batch['entities_sep'] = np.concatenate(new_batch['entities_sep'], axis=0)
         # new_batch['entities_sep'] = torch.as_tensor(new_batch['entities_sep']).long().to(self.device)
-        new_batch['bert_token'] = torch.as_tensor(np.concatenate(new_batch['bert_token'])).long().to(self.device)
-        new_batch['bert_mask'] = torch.as_tensor(np.concatenate(new_batch['bert_mask'])).long().to(self.device)
-        new_batch['bert_starts'] = torch.as_tensor(np.concatenate(new_batch['bert_starts'])).long().to(self.device)
 
         batch_ = [{k: v for k, v in b.items() if (k!='ents' and k != 'info' and k != 'text' and k != 'rgcn_adjacency')} for b in batch]
         converted_batch = concat_examples(batch_, device=self.device, padding=-1)

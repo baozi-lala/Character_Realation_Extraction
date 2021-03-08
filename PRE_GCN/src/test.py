@@ -134,7 +134,7 @@ class PrototypeSystem(object):
         # 空列表不影响结果
         for i, person_1 in enumerate(name_list):
             for j, person_2 in enumerate(name_list[i + 1:], i + 1):
-                type = "unknown"
+                type = "NA"
                 stri = person_1 + "%%%" + person_2 + "###" + type
                 sentence_relation.append(stri)
         # 构造lables # 标签 {p1,p2,r}
