@@ -215,24 +215,6 @@ class GLRE(BaseModel):
             encoded_seq = self.encoding_layer(input_vec, batch['section'][:, index])
             encoded_seq = rm_pad(encoded_seq, batch['section'][:, index])
             encoded_seq = self.pretrain_l_m_linear_re(encoded_seq)
-        else:
-            context_output = self.pretrain_lm(batch['bert_token'], attention_mask=batch['bert_mask'])[0]
-
-            context_output = [layer[starts.nonzero().squeeze(1)] for layer, starts in
-                              zip(context_output, batch['bert_starts'])]
-            context_output_pad = []
-            for output, word_len in zip(context_output, batch['section'][:, index]):
-                if output.size(0) < word_len:
-                    padding = Variable(output.data.new(1, 1).zero_())
-                    output = torch.cat([output, padding.expand(word_len - output.size(0), output.size(1))], dim=0)
-                context_output_pad.append(output)
-
-            context_output = torch.cat(context_output_pad, dim=0)
-
-            if self.more_lstm:
-                context_output = self.encoding_layer(context_output, batch['section'][:, index])
-                context_output = rm_pad(context_output, batch['section'][:, index])
-            encoded_seq = self.pretrain_l_m_linear_re(context_output)
         # 按句子分
         encoded_seq = split_n_pad(encoded_seq, batch['word_sec'])
         # 第二部分
@@ -240,14 +222,10 @@ class GLRE(BaseModel):
             output_gru = self.gru_layer(encoded_seq, batch['entities'],batch['section'][:, 0])
 
         # Graph
-        if self.pretrain_l_m == 'none':
-            # assert self.lstm_encoder
-            # 每个节点的表示，第二个维度相同，第一个维度为个数
-            nodes = self.node_layer(encoded_seq, batch['entities'], batch['word_sec'],batch['section'][:, 1])
-        else:
-            nodes = self.node_layer(encoded_seq, batch['entities'], batch['word_sec'],batch['section'][:, 1])
+        # assert self.lstm_encoder
+        # 每个节点的表示，第二个维度相同，第一个维度为个数
+        nodes = self.node_layer(encoded_seq, batch['entities'], batch['word_sec'],batch['section'][:, 1])
 
-        # init_nodes = nodes
         nodes, nodes_info = self.graph_layer(nodes, batch['entities'], batch['section'][:, 0:index])
 
         nodes, _ = self.rgcn_layer(nodes, batch['rgcn_adjacency'], batch['section'][:, 0:2])

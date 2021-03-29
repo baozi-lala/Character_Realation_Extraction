@@ -54,8 +54,14 @@ class RGCN_Layer(nn.Module):
             # relation_cnt=rgcn_adjacency.shape[0]
             for i in range(edge_cnt):
                 # 第batch中第i种节点  边
-                denom = torch.sparse.sum(adj[batch, i], dim=1).to_dense()
-                t_g = denom + torch.sparse.sum(adj[batch, i], dim=0).to_dense()
+                # todo 为0时？
+                if adj[batch, i]._nnz()==0:
+                    # denom = torch.sparse.sum(adj[batch, i])
+                    # t_g = denom + torch.sparse.sum(adj[batch, i])
+                    continue
+                else:
+                    denom = torch.sparse.sum(adj[batch, i], dim=1).to_dense()
+                    t_g = denom + torch.sparse.sum(adj[batch, i], dim=0).to_dense()
                 mask = t_g.eq(0)
                 denoms.append(denom.unsqueeze(1))
                 masks.append(mask)

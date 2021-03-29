@@ -21,6 +21,7 @@ from utils.utils import print_results, write_preds, write_errors, print_options,
 from data.converter import concat_examples
 from torch import optim, nn
 from utils.metrics_util import Accuracy
+from sklearn.metrics import classification_report, f1_score
 
 torch.set_printoptions(profile="full")
 np.set_printoptions(threshold=np.inf)
@@ -56,13 +57,14 @@ class Trainer:
         self.show_class = params['show_class']
         self.preds_file = os.path.join(model_folder, params['save_pred'])
         self.ok_file = os.path.join(model_folder, "train_finsh.ok")
+        self.pr_file = os.path.join(model_folder, "p_r.txt")
         self.best_epoch = 0
         if 'optimizer' not in params:
             params['optimizer'] = 'adam'
         self.o_name = params['optimizer']
 
-        self.train_res = {'loss': [], 'score': []}
-        self.test_res = {'loss': [], 'score': []}
+        self.train_res = {'loss': [], 'score': [],'p': [], 'r': []}
+        self.test_res = {'loss': [], 'score': [],'p': [], 'r': []}
 
         # early-stopping
         if self.es:
@@ -156,16 +158,18 @@ class Trainer:
                 continue
 
             if epoch % self.test_epoch == 0:
-
-                dev_f1, zj_f1, theta = self.eval_epoch()
+                # dev_f1是经过theta调整的
+                dev_f1, zj_f1, theta ,p,r= self.eval_epoch()
 
                 if dev_f1 > best_dev_f1:
                     best_dev_f1 = dev_f1
                     final_best_theta = theta
                     best_train_f1 = train_f1
                     print("dev f1=%f, save model" % dev_f1)
-
-                    save_model(self.model_folder, self, self.loader)
+                    print("zj_f1 f1=%f, save model" % zj_f1)
+                    # print("f1_score_t f1=%f, save model" % f1_score_t)
+                    loaderTemp=self.loader
+                    save_model(self.model_folder, self, loaderTemp)
 
             if self.es:
                 best_epoch, stop = self.early_stopping(epoch)
@@ -246,9 +250,12 @@ class Trainer:
 
         self.train_res['loss'] += [total_loss]
         self.train_res['score'] += [scores[self.primary_metric]]
+        self.train_res['p'] += [scores['micro_p']]
+        self.train_res['r'] += [scores['micro_r']]
+
         print('Epoch: {:02d} | TRAIN | LOSS = {:.05f}, | NA acc: {:4.2f} | not NA acc: {:4.2f}  | tot acc: {:4.2f}'.
               format(epoch, total_loss, self.acc_NA.get(), self.acc_not_NA.get(), self.acc_total.get()), end="")
-        print_results(scores, [], self.show_class, t2 - t1)
+        print_results(scores, [], False, t2 - t1)
         print("TTotal\t", sum(output['ttotal']))
         return scores['micro_f']
 
@@ -258,11 +265,13 @@ class Trainer:
         No backward computation is allowed.
         """
         t1 = time()
-        output = {'tp': [], 'fp': [], 'fn': [], 'tn': [], 'loss': [], 'preds': [], 'true': 0}
+        output = {'tp': [], 'fp': [], 'fn': [], 'tn': [], 'loss': [], 'preds': [],'truth': [], 'true': 0,'true_sep':np.zeros(self.rel_size)}
         test_info = []
         test_result = []
         self.model.eval()
         test_iter = self.iterator(self.data['test'], batch_size=self.params['batch'], shuffle_=False)
+        # preds=[]
+        # truths=[]
         for batch_idx, batch in enumerate(test_iter):
             batch = self.convert_batch(batch, istrain=False, save=True)
 
@@ -277,6 +286,8 @@ class Trainer:
                 output['fn'] += [stats['fn'].to('cpu').data.numpy()]
                 output['tn'] += [stats['tn'].to('cpu').data.numpy()]
                 output['preds'] += [predictions.to('cpu').data.numpy()]
+                # preds.extend(predictions.to('cpu').data.numpy())
+                # truths.extend(truth.to('cpu').data.numpy())
 
                 if True:
                     test_infos = batch['info'][select[0].to('cpu').data.numpy(),
@@ -287,33 +298,40 @@ class Trainer:
             pred_pairs = pred_pairs.data.cpu().numpy()
             multi_truths = multi_truths.data.cpu().numpy()
             output['true'] += multi_truths.sum() - multi_truths[:, self.loader.label2ignore].sum()
+            output['true_sep'] = output['true_sep'] +multi_truths.sum(axis=0)
             if save_predictions:
                 assert test_infos.shape[0] == len(pred_pairs), print(
                     "test info=%d, pred_pair=%d" % (len(test_infos.shape[0]), len(pred_pairs)))
             for pair_id in range(len(pred_pairs)):
-                multi_truth = multi_truths[pair_id]
+                multi_truth = multi_truths[pair_id] #第pair_id个实体对的true
                 for r in range(0, self.rel_size):
                     if r == self.loader.label2ignore:
                         continue
 
-                    test_result.append((int(multi_truth[r]) == 1, float(pred_pairs[pair_id][r]), self.loader.index2rel[r], r,
+                    test_result.append((int(multi_truth[r]) == 1, float(pred_pairs[pair_id][r]),
+                                        test_infos[pair_id]['intrain'],test_infos[pair_id]['cross'], self.loader.index2rel[r], r,
                                         len(test_info) - 1, pair_id))
 
 
         # estimate performance
         total_loss, scores = self.performance(output)
-
+        # pairs*rel_size*batch
         test_result.sort(key=lambda x: x[1], reverse=True)
-        input_theta, w, f1 = self.tune_f1_theta(test_result, output['true'], self.params['input_theta'], isTest=save_predictions)
+
+        input_theta, w, f1,p,r,scores_class = self.tune_f1_theta(test_result, output['true'],output['true_sep'], self.params['input_theta'], isTest=save_predictions)
 
         t2 = time()
         if not final:
             self.test_res['loss'] += [total_loss]
             # self.test_res['score'] += [scores[self.primary_metric]]
             self.test_res['score'] += [f1]
+            self.test_res['p'] = p
+            self.test_res['r'] = r
         print('            TEST  | LOSS = {:.05f}, '.format(total_loss), end="")
-        print_results(scores, [], self.show_class, t2 - t1)
-        print()
+        print_results(scores, scores_class, self.show_class, t2 - t1)
+        # print("不同类别：")
+        # t = classification_report(truths, preds,target_names=["NA","父母子女", "祖孙", "兄弟姐妹", "叔伯姑舅姨", "夫妻", "其他亲戚", "好友", "上下级", "师生", "合作", "情侣", "对立", "共现", "同学", "同门"])
+        # print(t)
 
         if save_predictions:
 
@@ -321,15 +339,17 @@ class Trainer:
             test_result_pred = []
             test_result_info = []
             for item in test_result:
-                test_result_pred.append([(item[-3], item[1])])
+                test_result_pred.append([(item[-3], item[1])]) #预测的关系是的概率
                 test_result_info.append([test_info[item[-2]][item[-1]]])
                 assert (item[-3] in test_info[item[-2]][item[-1]]['rel']) == item[0], print("item\n", item, "\n",
                                                                                             test_info[item[-2]][
                                                                                                 item[-1]])
             write_errors(test_result_pred, test_result_info, self.preds_file, map_=self.loader.index2rel, type="theta")
             write_preds(test_result_pred, test_result_info, self.preds_file, map_=self.loader.index2rel)
+        # f1_score_t=f1_score(truths, preds, average='micro')
+        # print(f1, scores['micro_f'], f1_score_t)
 
-        return f1, scores['micro_f'], input_theta
+        return f1, scores['micro_f'],input_theta,p,r
 
     def early_stopping(self, epoch):
         """
@@ -373,11 +393,12 @@ class Trainer:
             return res
 
         def prf1(tp_, fp_, fn_, tn_):
-            tp_ = np.sum(tp_, axis=0)
+            # 单类的
+            tp_ = np.sum(tp_, axis=0) #batch*=》
             fp_ = np.sum(fp_, axis=0)
             fn_ = np.sum(fn_, axis=0)
             tn_ = np.sum(tn_, axis=0)
-
+            # 总体的
             atp = np.sum(tp_)
             afp = np.sum(fp_)
             afn = np.sum(fn_)
@@ -407,7 +428,7 @@ class Trainer:
         return fin_loss, scores
 
 
-    def tune_f1_theta(self, test_result, total_recall, input_theta=-1, isTest=False):
+    def tune_f1_theta(self, test_result, total_recall,sep_recall, input_theta=-1, isTest=False):
         """
         (truth==r, float(pred_pairs[pair_id][r]), test_info[pair_id]['intrain'], self.loader.index2rel(r),
         test_info[pair_id]['entA'].id, test_info[pair_id]['entB'].id, r)
@@ -440,32 +461,42 @@ class Trainer:
             w = f1_pos
             input_theta = theta
         auc = sklearn.metrics.auc(x=pr_x, y=pr_y)
+        res_sep = self.macro_f1_cal(test_result[:w + 1], total_recall=sep_recall)
+        scores_class = []
+        for i in range(self.rel_size):
+            s = [self.loader.index2rel[i], ] + res_sep[i].tolist()
+            scores_class.append(s)
+        scores_class.append(['-----', None, None, None, None])
+        scores_class.append(['macro score',  pr_y[f1_pos], pr_x[f1_pos],f1, total_recall])
+        scores_class.append(['micro score', pr_y[w], pr_x[w],f1_arr[w],  total_recall])
 
         print('tune theta | ma_F1 {:3.4f} | ma_P {:3.4f} | ma_R {:3.4f} | AUC {:3.4f}'.format(f1, pr_y[f1_pos], pr_x[f1_pos], auc))
         print('input_theta {:3.4f} | test_result | F1 {:3.4f} | P {:3.4f} | R {:3.4f}'.format(input_theta, f1_arr[w], pr_y[w], pr_x[w]))
         f1_all = f1
+        r=pr_x
+        p=pr_y
 
-        pr_x = []
-        pr_y = []
-        correct = correct_in_train = 0
-        for i, item in enumerate(test_result):
-            correct += item[0]
-            if item[0] & (item[2].lower() == 'true'):
-                correct_in_train += 1
-            if correct_in_train == correct:
-                p = 0
-            else:
-                p = float(correct - correct_in_train) / (i + 1 - correct_in_train)
-            pr_y.append(p)
-            pr_x.append(float(correct) / total_recall)
-        pr_x = np.asarray(pr_x, dtype='float32')
-        pr_y = np.asarray(pr_y, dtype='float32')
-        f1_arr = (2 * pr_x * pr_y / (pr_x + pr_y + 1e-20))
-        f1 = f1_arr.max()
-
-        auc = sklearn.metrics.auc(x=pr_x, y=pr_y)
-        print('Ignore ma_f1 {:3.4f} | input_theta {:3.4f} | test_result F1 {:3.4f} | P {:3.4f} | R {:3.4f} | AUC {:3.4f}'
-                .format(f1, input_theta, f1_arr[w], pr_y[w], pr_x[w], auc))
+        # pr_x = []
+        # pr_y = []
+        # correct = correct_in_train = 0
+        # for i, item in enumerate(test_result):
+        #     correct += item[0]
+        #     if item[0] & (item[2].lower() == 'true'):
+        #         correct_in_train += 1
+        #     if correct_in_train == correct:
+        #         p = 0
+        #     else:
+        #         p = float(correct - correct_in_train) / (i + 1 - correct_in_train)
+        #     pr_y.append(p)
+        #     pr_x.append(float(correct) / total_recall)
+        # pr_x = np.asarray(pr_x, dtype='float32')
+        # pr_y = np.asarray(pr_y, dtype='float32')
+        # f1_arr = (2 * pr_x * pr_y / (pr_x + pr_y + 1e-20))
+        # f1 = f1_arr.max()
+        #
+        # auc = sklearn.metrics.auc(x=pr_x, y=pr_y)
+        # print('Ignore ma_f1 {:3.4f} | input_theta {:3.4f} | test_result F1 {:3.4f} | P {:3.4f} | R {:3.4f} | AUC {:3.4f}'
+        #         .format(f1, input_theta, f1_arr[w], pr_y[w], pr_x[w], auc))
 
         if isTest:
             # item[3]
@@ -476,7 +507,25 @@ class Trainer:
             self.prune_f1_cal(test_result, self.test_prune_recall['1-max'], input_theta, 1, 10000)
             self.prune_f1_cal(test_result, self.test_prune_recall['3-max'], input_theta, 3, 10000)
 
-        return input_theta, w, f1_all
+        return input_theta, w, f1_all,p,r,scores_class
+    def macro_f1_cal(self, test_result, total_recall):
+        """
+        @:param test_result
+        @:param total_recall:{"r1":100,"r2":20}
+        :return:
+        """
+        pred=np.zeros(self.rel_size)
+        correct=np.zeros(self.rel_size)
+        for i, item in enumerate(test_result):
+            # print("test_result", item)
+            pred_rel=item[5]
+            pred[pred_rel]+=1
+            if item[0]:
+                correct[pred_rel]+=1
+        p=np.divide(correct,pred,out=np.zeros_like(correct), where=pred!=0)
+        r=np.divide(correct,total_recall,out=np.zeros_like(correct), where=total_recall!=0)
+        f1=np.divide(2*p*r,p+r,out=np.zeros_like(2*p*r), where=(p+r)!=0)
+        return np.column_stack((p,r,f1,total_recall))
 
     def prune_f1_cal(self, test_result, total_recall, input_theta, prune_k_s, prune_k_e):
         if total_recall == 0:
@@ -511,37 +560,37 @@ class Trainer:
             'prune {}-{} | ma_f1 {:3.4f} | ma_p {:3.4f} | ma_r {:3.4f}| input_theta {:3.4f} | test_result F1 {:3.4f} | P {:3.4f} | R {:3.4f} | AUC {:3.4f}'
             .format(prune_k_s, prune_k_e, f1, pr_y[f1_pos], pr_x[f1_pos], input_theta, f1_arr[w], pr_y[w], pr_x[w], auc))
 
-        pr_x = []
-        pr_y = []
-        correct_in_prune_k = correct_in_train = 0
-        all_in_prune_k = 0
-        w = 0
-        j = 0
-        for i, item in enumerate(test_result):
-            dis = int(item[3])
-            if dis >= prune_k_s and dis < prune_k_e:
-                all_in_prune_k+=1
-                j+=1
-                correct_in_prune_k += item[0]
-                if item[0] & (item[2].lower() == 'true'):
-                    correct_in_train += 1
-                if correct_in_train == correct_in_prune_k:
-                    p = 0
-                else:
-                    p = float(correct_in_prune_k - correct_in_train) / (all_in_prune_k - correct_in_train)
-                pr_y.append(p)
-                pr_x.append(float(correct_in_prune_k) / total_recall)
-                if item[1] > input_theta:
-                    w = j
-        pr_x = np.asarray(pr_x, dtype='float32')
-        pr_y = np.asarray(pr_y, dtype='float32')
-        f1_arr = (2 * pr_x * pr_y / (pr_x + pr_y + 1e-20))
-        f1 = f1_arr.max()
-
-        auc = sklearn.metrics.auc(x=pr_x, y=pr_y)
-        print(
-            'Ignore prune {}-{} | ma_f1 {:3.4f} | input_theta {:3.4f} | test_result F1 {:3.4f} | P {:3.4f} | R {:3.4f} | AUC {:3.4f}'
-            .format(prune_k_s, prune_k_e, f1, input_theta, f1_arr[w], pr_y[w], pr_x[w], auc))
+        # pr_x = []
+        # pr_y = []
+        # correct_in_prune_k = correct_in_train = 0
+        # all_in_prune_k = 0
+        # w = 0
+        # j = 0
+        # for i, item in enumerate(test_result):
+        #     dis = int(item[3])
+        #     if dis >= prune_k_s and dis < prune_k_e:
+        #         all_in_prune_k+=1
+        #         j+=1
+        #         correct_in_prune_k += item[0]
+        #         if item[0] & (item[2].lower() == 'true'):
+        #             correct_in_train += 1
+        #         if correct_in_train == correct_in_prune_k:
+        #             p = 0
+        #         else:
+        #             p = float(correct_in_prune_k - correct_in_train) / (all_in_prune_k - correct_in_train)
+        #         pr_y.append(p)
+        #         pr_x.append(float(correct_in_prune_k) / total_recall)
+        #         if item[1] > input_theta:
+        #             w = j
+        # pr_x = np.asarray(pr_x, dtype='float32')
+        # pr_y = np.asarray(pr_y, dtype='float32')
+        # f1_arr = (2 * pr_x * pr_y / (pr_x + pr_y + 1e-20))
+        # f1 = f1_arr.max()
+        #
+        # auc = sklearn.metrics.auc(x=pr_x, y=pr_y)
+        # print(
+        #     'Ignore prune {}-{} | ma_f1 {:3.4f} | input_theta {:3.4f} | test_result F1 {:3.4f} | P {:3.4f} | R {:3.4f} | AUC {:3.4f}'
+        #     .format(prune_k_s, prune_k_e, f1, input_theta, f1_arr[w], pr_y[w], pr_x[w], auc))
 
 
     def convert_batch(self, batch, istrain=False, save=False):

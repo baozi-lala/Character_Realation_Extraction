@@ -131,7 +131,7 @@ class BaseModel(nn.Module):
 
         true = torch.where(mask_t, label_num, t.view(-1).long().to(self.device))  # ground truth
         pred = torch.where(mask_p, label_num, y.view(-1).long().to(self.device))  # output of NN
-
+        # 第一个是判断条件，第二个是符合条件的设置值，第三个是不满足条件的设置值
         tp_mask = torch.where(torch.eq(pred, true), true, label_num)
         fp_mask = torch.where(torch.ne(pred, true), pred, label_num)
         fn_mask = torch.where(torch.ne(pred, true), true, label_num)

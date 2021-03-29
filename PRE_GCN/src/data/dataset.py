@@ -46,10 +46,7 @@ class DocRelationDataset:
         cnt=0
         for pmid in pbar:
             pbar.set_description('  Preparing {} data - PMID {}'.format(self.data_type.upper(), pmid))
-            if len(self.loader.entities[pmid].items())<1:
-                # cnt+=1
-                # print("no entities ",cnt)
-                continue
+
             # TEXT
             doc = []
             sens_len = []
@@ -214,41 +211,64 @@ class DocRelationDataset:
             for i in range(r_id.shape[0]):
                 for j in range(r_id.shape[0]):
                     mask[i][j] = bool(set(r_Sid[i][j]).intersection(set(c_Sid[i][j])))
-            # entity-entity
-            adjacency = np.where(np.logical_or(r_id == 0, r_id == 3) & np.logical_or(c_id == 0, c_id == 3) & mask, 1, adjacency)  # in same sentence
-            rgcn_adjacency[0] = np.where(
-                    np.logical_or(r_id == 0, r_id == 3) & np.logical_or(c_id == 0, c_id == 3) & mask, 1,
-                    rgcn_adjacency[0])
+            # entity-entity有条件连接 1
+            # adjacency = np.where((r_id == 0) & (c_id == 0) & mask, 1, adjacency)  # in same sentence
+            # rgcn_adjacency[0] = np.where((r_id == 0) & (c_id == 0) & mask, 1,rgcn_adjacency[0])
 
+            # entity-entity全连接 2
+            # rgcn_adjacency[0] = np.where((r_id == 0) & (c_id == 0), 1,
+            #     rgcn_adjacency[0])
 
-            # sentence-sentence (direct + indirect)
-            # todo 去掉indirect
+            # entity-entity不连接 3
+
+            # sentence-sentence 有条件连接 4
             s_mask = np.full((r_id.shape[0], r_id.shape[0]), False)
             for i in range(r_id.shape[0]):
                 for j in range(r_id.shape[0]):
                     s_mask[i][j] = True if abs(r_Sid[i][j][0]-c_Sid[i][j][0])<=1 else False
             adjacency = np.where((r_id == 2) & (c_id == 2)&s_mask, 1, adjacency)
             rgcn_adjacency[1] = np.where((r_id == 2) & (c_id == 2)&s_mask, 1, rgcn_adjacency[1])
+            # sentence-sentence 全连接 5
             # adjacency = np.where((r_id == 2) & (c_id == 2), 1, adjacency)
             # rgcn_adjacency[1] = np.where((r_id == 2) & (c_id == 2), 1, rgcn_adjacency[1])
+            # sentence-sentence 不连接 6
 
-            # entity-sentence
-            adjacency = np.where(np.logical_or(r_id == 0, r_id == 3) & (c_id == 2) & mask, 1, adjacency)  # belongs to sentence
-            adjacency = np.where((r_id == 2) & np.logical_or(c_id == 0, c_id == 3) & mask, 1, adjacency)
-            rgcn_adjacency[2] = np.where(np.logical_or(r_id == 0, r_id == 3) & (c_id == 2) & mask, 1, rgcn_adjacency[2])  # belongs to sentence
-            rgcn_adjacency[2] = np.where((r_id == 2) & np.logical_or(c_id == 0, c_id == 3) & mask, 1, rgcn_adjacency[2])
+            # entity-sentence 有条件连接 7
+            adjacency = np.where((r_id == 0) & (c_id == 2) & mask, 1, adjacency)  # belongs to sentence
+            adjacency = np.where((r_id == 2) & (c_id == 0) & mask, 1, adjacency)
+            rgcn_adjacency[2] = np.where((r_id == 0) & (c_id == 2) & mask, 1, rgcn_adjacency[2])  # belongs to sentence
+            rgcn_adjacency[2] = np.where((r_id == 2) & (c_id == 0) & mask, 1, rgcn_adjacency[2])
+            # entity-sentence 全连接 8
+            # adjacency = np.where((r_id == 0) & (c_id == 2) , 1, adjacency)  # belongs to sentence
+            # adjacency = np.where((r_id == 2) & (c_id == 0) , 1, adjacency)
+            # rgcn_adjacency[2] = np.where((r_id == 0) & (c_id == 2), 1, rgcn_adjacency[2])  # belongs to sentence
+            # rgcn_adjacency[2] = np.where((r_id == 2) & (c_id == 0), 1, rgcn_adjacency[2])
+            # entity-sentence 不连接 9
+            # document 不存在 10
             if self.doc_node:
-                # entity-document
+                # entity-document 连接 11
                 adjacency = np.where((r_id == 0) & (c_id == 3), 1, adjacency)
                 adjacency = np.where((r_id == 3) & (c_id == 0), 1, adjacency)
                 rgcn_adjacency[3] = np.where((r_id == 0) & (c_id == 3), 1, rgcn_adjacency[3])  # belongs to entity
                 rgcn_adjacency[3] = np.where((r_id == 3) & (c_id == 0), 1, rgcn_adjacency[3])
 
-                # sentence-document
+                # entity-document 不连接 12
+                # adjacency = np.where((r_id == 0) & (c_id == 3), 0, adjacency)
+                # adjacency = np.where((r_id == 3) & (c_id == 0), 0, adjacency)
+                # rgcn_adjacency[3] = np.where((r_id == 0) & (c_id == 3), 0, rgcn_adjacency[3])  # belongs to entity
+                # rgcn_adjacency[3] = np.where((r_id == 3) & (c_id == 0), 0, rgcn_adjacency[3])
+
+                # sentence-document 连接 13
                 adjacency = np.where((r_id == 2) & (c_id == 3), 1, adjacency)
                 adjacency = np.where((r_id == 3) & (c_id == 2), 1, adjacency)
                 rgcn_adjacency[4] = np.where((r_id == 2) & (c_id == 3), 1, rgcn_adjacency[4])  # belongs to entity
                 rgcn_adjacency[4] = np.where((r_id == 3) & (c_id == 2), 1, rgcn_adjacency[4])
+
+                # sentence-document 不连接 14
+                # adjacency = np.where((r_id == 2) & (c_id == 3), 0, adjacency)
+                # adjacency = np.where((r_id == 3) & (c_id == 2), 0, adjacency)
+                # rgcn_adjacency[4] = np.where((r_id == 2) & (c_id == 3), 0, rgcn_adjacency[4])  # belongs to entity
+                # rgcn_adjacency[4] = np.where((r_id == 3) & (c_id == 2), 0, rgcn_adjacency[4])
 
             rgcn_adjacency = sparse_mxs_to_torch_sparse_tensor([sp.coo_matrix(rgcn_adjacency[i]) for i in range(cnt)])
 

@@ -49,13 +49,16 @@ class BiGRU(nn.Module):
                                 num_layers=self.gru_layers, dropout=params['gru_dropout'],
                                 bidirectional=True)
 
-        self.word_attn = AttentionWordRNN(batch_size=self.batch_size,
+        if self.params['word_attn']:
+            self.word_attn = AttentionWordRNN(batch_size=self.batch_size,
                              hidden_size=self.gru_dim, bidirectional= True)
-
-
-        self.sent_attn = AttentionSentRNN(batch_size=self.batch_size, sent_input=2*self.gru_dim,
+        else:
+            self.fc1 = nn.Linear(2, 1)
+        if self.params['sent_attn']:
+            self.sent_attn = AttentionSentRNN(batch_size=self.batch_size, sent_input=2*self.gru_dim,
                             bidirectional=True)
-
+        else:
+            self.fc2 = nn.Linear(2, 1)
         self.fc = nn.Linear(self.gru_dim * 2, self.output_size)
 
 
@@ -82,12 +85,22 @@ class BiGRU(nn.Module):
                 # hidden_state = Variable(torch.zeros(2 * self.gru_layers, sen.size(0), self.gru_dim)).cuda()
                 gru_output,_=self.gru_layer(sen.permute(1, 0, 2))
                 # state_sent = self.sent_attn.init_hidden().cuda()
-                word_attn_vectors, word_attn_norm=self.word_attn(gru_output)
+                if self.params['word_attn']:
+                    word_attn_vectors, word_attn_norm=self.word_attn(gru_output)
+                else:
+                    word_attn_vectors=torch.cat((torch.max(gru_output,dim=0).values.unsqueeze(0),torch.mean(gru_output,dim=0).unsqueeze(0)), dim=0)
+                    word_attn_vectors=self.fc1(word_attn_vectors.permute(1, 2, 0))
+                    word_attn_vectors=word_attn_vectors.permute(2, 0, 1)
                 word_att_out.append(word_attn_vectors)
             word_att_out=torch.cat(word_att_out, dim=0)
             # word_att_out = word_att_out.reshape((bag_input_sen.size(0), bag_input_sen.size(1), -1))
             if word_att_out.size(0)>1:
-                sent_attn_vectors, sent_attn_norm = self.sent_attn(word_att_out)
+                if self.params['sent_attn']:
+                    sent_attn_vectors, sent_attn_norm = self.sent_attn(word_att_out)
+                else:
+                    sent_attn_vectors = torch.cat((torch.max(word_att_out,dim=0).values.unsqueeze(0), torch.mean(word_att_out,dim=0).unsqueeze(0)), dim=0)
+                    sent_attn_vectors = self.fc2(sent_attn_vectors.permute(1, 2, 0))
+                    sent_attn_vectors = sent_attn_vectors.permute(2, 0, 1).squeeze()
             else:
                 sent_attn_vectors=word_att_out.squeeze()
             bag_out= self.fc(sent_attn_vectors)

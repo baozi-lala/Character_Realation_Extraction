@@ -14,10 +14,10 @@ lstm_encoder: false
 more_lstm: false
 
 # encoder
-emb_method: false # true for load_embeds
+emb_method: true # true for load_embeds
 emb_method_file: merge
 emb_method_file_path: ../data/DocPRE/word_vector/processed/
-word_dim: 768
+word_dim: 300
 lstm_dim: 256
 out_dim: 256
 #type_dim: 20
@@ -46,7 +46,7 @@ opt: adam
 patience: 10
 unk_w_prob: 0.5
 min_w_freq: 1
-init_train_epochs: 10
+init_train_epochs: 1
 NA_NUM: 0.5  # 0.1==5:1
 mlp_layers: 1
 mlp_dim: 512
@@ -54,7 +54,7 @@ mlp_dim: 512
 # gru
 sen_len : 70  # 60：每个句子的固定长度（词个数）：如果真实句子长度大于该值，则舍弃后面的，小于则补充
 #  pre_embed : flags.pre_embed  # 是否进行了训练（得到word2vec的词向量）
-add_pos : true
+add_pos : false
 pos_limit : 15  # 词与实体最大的距离
 pos_dim : 5  # 设置位置嵌入的维度
 #  hidden_dim : flags.hidden_dim
@@ -64,19 +64,21 @@ gru_dim: 256
 output_gru: 256
 gru_layers: 2
 gru_dropout: 0.5  # 失活概率：0.5
-pretrained_model: 'Bert'
-
+word_attn: true
+sent_attn: true
 # data based
 train_data: ../data/DocPRE/processed/train1_v3.json
 test_data: ../data/DocPRE/processed/dev1_v3.json
 embeds: ../data/DocPRE/word_vector/sgns.merge.word
-folder: ../results/docpre-dev-merge-new
+folder: ../results/docpre-dev-merge-v3
 save_pred: dev
+remodelfile: ../results/docpre-dev-merge-v3/docred_full
+output_path: ../results/docpre-dev-merge-v3/docred_full
 
 # options (chosen from parse input otherwise false)
 lowercase: false
 plot: true
-show_class: false
+show_class: true
 early_stop: true
 save_model: true
 freeze_words: true

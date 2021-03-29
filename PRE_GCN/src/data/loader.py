@@ -26,12 +26,12 @@ class ConfigLoader:
 
         parser.add_argument("--feature", default=str)
 
-        parser.add_argument("--remodelfile", type=str,default='./results/docpre-dev-merge/docred_full_sen_nodocnode/')
+        # parser.add_argument("--remodelfile", type=str,default='./results/docpre-dev-merge/docred_full_sen_nodocnode/')
         parser.add_argument('--input_theta', type=float, default=-1)
 
         parser.add_argument('--config_file', type=str,default='./configs/docpre_basebert.yaml')
-        parser.add_argument('--output_path', type=str, default='./results/docpre-dev-merge/docred_full_sen_nodocnode/')
-        parser.add_argument('--test_data', type=str,default='../data/DocPRE/processed/dev1_v3.json')
+        # parser.add_argument('--output_path', type=str, default='./results/docpre-dev-merge/docred_full_sen_nodocnode/')
+        # parser.add_argument('--test_data', type=str,default='../data/DocPRE/processed/dev1_v4.json')
         parser.add_argument('--save_pred', type=str,default='dev')
 
         parser.add_argument('--batch', type=int, default=8, help='batch size')
@@ -55,11 +55,11 @@ class ConfigLoader:
         parameters['train'] = inp.train
         parameters['test'] = inp.test
         parameters['config'] = inp.config_file
-        parameters['remodelfile'] = inp.remodelfile
+        # parameters['remodelfile'] = inp.remodelfile
         parameters['input_theta'] = inp.input_theta
-        parameters['output_path'] = inp.output_path
-        if inp.test_data:
-            parameters['test_data'] = inp.test_data
+        # parameters['output_path'] = inp.output_path
+        # if inp.test_data:
+        #     parameters['test_data'] = inp.test_data
         if inp.batch:
             parameters['batch'] = inp.batch
         if inp.save_pred:

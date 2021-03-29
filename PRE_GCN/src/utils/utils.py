@@ -49,7 +49,7 @@ def write_errors(preds, info, ofile, map_=None, type="max"):
                 if k[0] not in j['rel']:
                     outfile.write('Prediction: {} \t Score: {}\t Truth: {} \t Type: {} \n'.format(map_[k[0]], k[1],  "-".join([map_[rel] for rel in j['rel']]), j['cross']))
                     doc = [it for items in j['doc'] for it in items]
-                    outfile.write('{}\n{}\n'.format(j['pmid'], ' '.join(doc)))
+                    outfile.write('{}\n{}\n'.format(j['pmid'], ''.join(doc)))
 
                     # gg1 = ' | '.join([' '.join(doc[int(m1)]) for m1 in
                     #                   j['entA'].postotal.split(':')])
@@ -133,8 +133,62 @@ def plot_learning_curve(trainer, model_folder):
     plt.yticks(np.arange(0, 1, 0.1))
 
     fig.savefig(model_folder + '/learn_curves.png', bbox_inches='tight')
+def plot_P_R(trainer, model_folder):
+    """
+    Plot the learning curves for training and test set (loss and primary score measure)
+
+    Args:
+        trainer (Class): trainer object
+        model_folder (str): folder to save figures
+    """
+    fig = plt.figure()
+    plt.subplot(2, 1, 1)
+    plt.xlabel('Recall')
+    plt.ylabel('Precision')
+    # plt.ylim(0.0, 1.0)
+    # plt.xlim(0.0, 1.0)
+    plt.title('Precision-Recall-Train')
+    plt.grid(True)
+    plt.plot(trainer.train_res['r'], trainer.train_res['p'], 'b')
+    plt.subplot(2, 1, 2)
+    plt.xlabel('Recall')
+    plt.ylabel('Precision')
+    # plt.ylim(0.0, 1.0)
+    # plt.xlim(0.0, 1.0)
+    plt.title('Precision-Recall-Dev')
+    plt.grid(True)
+    plt.plot(trainer.test_res['r'], trainer.test_res['p'], 'b', 'g')
+
+    fig.savefig(model_folder + '/P-R.png', bbox_inches='tight')
 
 
+def write_metrics(trainer, ofile):
+    """ Write model metrics to file """
+    print('Saving metrics ... ', end="")
+    with open(ofile+'/metrics.txt', 'w', encoding="utf-8") as outfile:
+        outfile.write('Train Loss:\n')
+        outfile.write(str(trainer.train_res['loss']))
+        outfile.write('\n')
+        outfile.write('Test Loss:\n')
+        outfile.write(str(trainer.test_res['loss']))
+        outfile.write('\n')
+        outfile.write('Train F1:\n')
+        outfile.write(str(trainer.train_res['score']))
+        outfile.write('\n')
+        outfile.write('Test F1:\n')
+        outfile.write(str(trainer.test_res['score']))
+        outfile.write('\n')
+        outfile.write('Train P:\n')
+        outfile.write(str(trainer.train_res['p']))
+        outfile.write('\n')
+        outfile.write('Test P:\n')
+        outfile.write(str(trainer.test_res['p']))
+        outfile.write('Train R:\n')
+        outfile.write(str(trainer.train_res['r']))
+        outfile.write('\n')
+        outfile.write('Test R:\n')
+        outfile.write(str(trainer.test_res['r']))
+    print('DONE')
 def print_results(scores, scores_class, show_class, time):
     """
     Print class-wise results.
@@ -151,12 +205,12 @@ def print_results(scores, scores_class, show_class, time):
 
     if show_class:
         # print results for every class
-        scores_class.append(['-----', None, None, None])
-        scores_class.append(['macro score', scores['macro_p'], scores['macro_r'], scores['macro_f']])
-        scores_class.append(['micro score', scores['micro_p'], scores['micro_r'], scores['micro_f']])
+        # scores_class.append(['-----', None, None, None,None])
+        # scores_class.append(['macro score', scores['macro_p'], scores['macro_r'], scores['macro_f'],scores['true']])
+        # scores_class.append(['micro score', scores['micro_p'], scores['micro_r'], scores['micro_f'],scores['true']])
         print(' | {}\n'.format(humanized_time(time)))
         print(indent(tabulate(scores_class,
-                              headers=['Class', 'P', 'R', 'F1'],
+                              headers=['Class', 'P', 'R', 'F1','Support'],
                               tablefmt='orgtbl',
                               missingval="")))  # floatfmtL=".4f",
         print()
@@ -244,7 +298,14 @@ def observe(model):
 def save_model(model_folder, trainer, loader):
     print('\nSaving the model & the parameters ...')
     # save mappings
+
     with open(os.path.join(model_folder, 'mappings.pkl'), 'wb') as f:
+        loader.documents = []
+        loader.entities = []
+        loader.entities_cor_id = []
+        loader.pairs = []
+        loader.word2count = []
+        loader.singletons = []
         pkl.dump(loader, f, pkl.HIGHEST_PROTOCOL)
     torch.save(trainer.model.state_dict(), os.path.join(model_folder, 're.model'))
     # for k, v in trainer.model.state_dict().items():
@@ -305,20 +366,12 @@ def print_options(params):
     print("Parameters:")
     for key, value in params.items():
         print("\t - %s\t %s" % (key, value))
-def plot_P_R(trainer, model_folder):
-    """
-    Plot the learning curves for training and test set (loss and primary score measure)
+class ParaSaver:
+    def __init__(self, loader):
 
-    Args:
-        trainer (Class): trainer object
-        model_folder (str): folder to save figures
-    """
-    plt.xlabel('Recall')
-    plt.ylabel('Precision')
-    plt.ylim(0.3, 1.0)
-    plt.xlim(0.0, 0.4)
-    plt.title('Precision-Recall')
-    plt.grid(True)
-    plt.plot(pr_x, pr_y, lw=2, label=str(epoch))
-    plt.legend(loc="upper right")
-    plt.savefig(os.path.join("fig_result", model_name))
+        loader.documents=[]
+        loader.entities = []
+        loader.entities_cor_id = []
+        loader.pairs = []
+        loader.word2count =[]
+        loader.singletons =[]
