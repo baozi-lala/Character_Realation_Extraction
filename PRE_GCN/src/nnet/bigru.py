@@ -158,8 +158,8 @@ class BiGRU(nn.Module):
                                     pos2.append(self.__get_pos_index(p - p2))
                                 pos1_all.append(np.array(pos1))
                                 pos2_all.append(np.array(pos2))
-                            pos1_all=torch.from_numpy(np.array(pos1_all)).to(self.device)
-                            pos2_all = torch.from_numpy(np.array(pos2_all)).to(self.device)
+                            pos1_all=torch.from_numpy(np.array(pos1_all)).to(self.device).long()
+                            pos2_all = torch.from_numpy(np.array(pos2_all)).to(self.device).long()
                             sentences_encode=self.encoder_layer(input[indexs],pos1_all,pos2_all)
                         else:
                             sentences_encode =input[indexs]

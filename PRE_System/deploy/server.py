@@ -73,5 +73,5 @@ def predict():
 
 if __name__ == '__main__':
 
-    p=PrototypeSystem(remodelfile='../../PRE_GCN/results/docpre-dev-merge-v3/docred_full/')
-    app.run(host='localhost', port=5001, debug = False)
+    p=PrototypeSystem(remodelfile='../../PRE_GCN/results/docpre-dev-merge-v3/docred_full-tmp2/')
+    app.run(host='localhost', port=5001, debug = True)

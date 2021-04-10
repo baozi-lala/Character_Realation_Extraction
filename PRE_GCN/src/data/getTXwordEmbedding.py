@@ -136,9 +136,12 @@ def convertdataset(data_name):
 
 if __name__ == '__main__':
     # tx_word_vector()
-    path="./../../data/DocPRE/word_vector/sgns.merge.word"
-    word_vector_name="merge"
-    baidu_baike_word_vector(path,word_vector_name)
+
+    # word_vector_name=["financial","literature","renmin","sikuquanshu","weibo","zhihu"]
+    word_vector_name = ["wiki"]
+    for name in word_vector_name:
+        path = "./../../data/DocPRE/word_vector/sgns."+name+".word"
+        baidu_baike_word_vector(path,name)
     # convertdataset("train1_v2")
     # convertdataset("dev1_v2")
     # convertdataset("test1_v2")

@@ -15,7 +15,6 @@ more_lstm: false
 
 # encoder
 emb_method: true # true for load_embeds
-emb_method_file: merge
 emb_method_file_path: ../data/DocPRE/word_vector/processed/
 word_dim: 300
 lstm_dim: 256
@@ -54,7 +53,7 @@ mlp_dim: 512
 # gru
 sen_len : 70  # 60：每个句子的固定长度（词个数）：如果真实句子长度大于该值，则舍弃后面的，小于则补充
 #  pre_embed : flags.pre_embed  # 是否进行了训练（得到word2vec的词向量）
-add_pos : false
+add_pos : true
 pos_limit : 15  # 词与实体最大的距离
 pos_dim : 5  # 设置位置嵌入的维度
 #  hidden_dim : flags.hidden_dim
@@ -69,11 +68,12 @@ sent_attn: true
 # data based
 train_data: ../data/DocPRE/processed/train1_v3.json
 test_data: ../data/DocPRE/processed/dev1_v3.json
+emb_method_file: merge
 embeds: ../data/DocPRE/word_vector/sgns.merge.word
-folder: ../results/docpre-dev-merge-v3
+folder: ../results/docpre-dev-merge-v3-new
 save_pred: dev
-remodelfile: ../results/docpre-dev-merge-v3/docred_full
-output_path: ../results/docpre-dev-merge-v3/docred_full
+remodelfile: ../results/docpre-dev-merge-v3-new/docred_full-seed6
+output_path: ../results/docpre-dev-merge-v3-new/docred_full-seed6
 
 # options (chosen from parse input otherwise false)
 lowercase: false
@@ -84,7 +84,7 @@ save_model: true
 freeze_words: true
 
 # extra
-seed: 0
+seed: 6
 shuffle_data: true
 label2ignore: NA
 primary_metric: micro_f

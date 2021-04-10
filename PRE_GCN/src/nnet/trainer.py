@@ -502,8 +502,10 @@ class Trainer:
             # item[3]
             print(self.test_prune_recall)
             self.prune_f1_cal(test_result, self.test_prune_recall['0-1'], input_theta, 0, 1)
-            self.prune_f1_cal(test_result, self.test_prune_recall['1-3'], input_theta, 1, 3)
+            self.prune_f1_cal(test_result, self.test_prune_recall['1-2'], input_theta, 1, 2)
+            self.prune_f1_cal(test_result, self.test_prune_recall['2-3'], input_theta, 2, 3)
             self.prune_f1_cal(test_result, self.test_prune_recall['0-3'], input_theta, 0, 3)
+            self.prune_f1_cal(test_result, self.test_prune_recall['1-3'], input_theta, 1, 3)
             self.prune_f1_cal(test_result, self.test_prune_recall['1-max'], input_theta, 1, 10000)
             self.prune_f1_cal(test_result, self.test_prune_recall['3-max'], input_theta, 3, 10000)
 

@@ -21,7 +21,7 @@ class DocRelationDataset:
         self.data_type = data_type
         self.data = []
         self.lowercase = params['lowercase']
-        self.prune_recall = {"0-max":0, "0-1":0, "0-3":0, "1-3":0, "1-max":0, "3-max":0}
+        self.prune_recall = {"0-max":0, "0-1":0,"1-2":0,"2-3":0,"0-3":0,"1-3":0, "1-max":0, "3-max":0}
         self.doc_node=params['doc_node']
         # if 'bert-large' in params['pretrain_l_m'] and 'albert' not in params['pretrain_l_m']:
         #     self.bert = transformers_word_handle("bert", 'bert-large-uncased-whole-word-masking', dataset=params['dataset'])
@@ -44,6 +44,8 @@ class DocRelationDataset:
         miss_word = 0
         miss_word_dev = 0
         cnt=0
+        max_dis=0
+        dis_list=[]
         for pmid in pbar:
             pbar.set_description('  Preparing {} data - PMID {}'.format(self.data_type.upper(), pmid))
 
@@ -133,15 +135,31 @@ class DocRelationDataset:
 
                     if i.type != self.loader.ign_label:
                         dis_cross = int(i.cross)
+                        max_dis=max(max_dis,dis_cross)
+                        dis_list.append(dis_cross)
                         if dis_cross == 0:
                             self.prune_recall['0-1'] += 1
                             self.prune_recall['0-3'] += 1
                             self.prune_recall['0-max'] += 1
-                        elif dis_cross < 3:
-                            self.prune_recall['0-3'] += 1
+                        elif dis_cross ==1:
+                            self.prune_recall['1-2'] += 1
                             self.prune_recall['1-3'] += 1
                             self.prune_recall['1-max'] += 1
+                            self.prune_recall['0-3'] += 1
                             self.prune_recall['0-max'] += 1
+
+                        elif dis_cross ==2:
+                            self.prune_recall['2-3'] += 1
+                            self.prune_recall['1-3'] += 1
+                            self.prune_recall['1-max'] += 1
+                            self.prune_recall['0-3'] += 1
+                            self.prune_recall['0-max'] += 1
+
+                        # elif dis_cross < 3:
+                        #     self.prune_recall['0-3'] += 1
+                        #     self.prune_recall['1-3'] += 1
+                        #     self.prune_recall['1-max'] += 1
+                        #     self.prune_recall['0-max'] += 1
                         else:
                             self.prune_recall['0-max'] += 1
                             self.prune_recall['3-max'] += 1
@@ -212,8 +230,8 @@ class DocRelationDataset:
                 for j in range(r_id.shape[0]):
                     mask[i][j] = bool(set(r_Sid[i][j]).intersection(set(c_Sid[i][j])))
             # entity-entity有条件连接 1
-            # adjacency = np.where((r_id == 0) & (c_id == 0) & mask, 1, adjacency)  # in same sentence
-            # rgcn_adjacency[0] = np.where((r_id == 0) & (c_id == 0) & mask, 1,rgcn_adjacency[0])
+            adjacency = np.where((r_id == 0) & (c_id == 0) & mask, 1, adjacency)  # in same sentence
+            rgcn_adjacency[0] = np.where((r_id == 0) & (c_id == 0) & mask, 1,rgcn_adjacency[0])
 
             # entity-entity全连接 2
             # rgcn_adjacency[0] = np.where((r_id == 0) & (c_id == 0), 1,
@@ -287,4 +305,7 @@ class DocRelationDataset:
                            'words': np.hstack([np.array(s) for s in doc])}]
         print("miss_word", miss_word)
         print("miss_word_dev ", miss_word_dev)
+        # print(max_dis)
+        # print(dis_list)
+
         return self.data, self.prune_recall

@@ -27,7 +27,7 @@ class gen_embedding:
             self.word_dim = 300
             # 启动
             print("Starting...")
-            self.bert = BertClient(ip='localhost',check_version=False, check_length=False)
+            # self.bert = BertClient(ip='localhost',check_version=False, check_length=False)
     def bert_wordMap(self):
         wordMap={}
         all_content = []
