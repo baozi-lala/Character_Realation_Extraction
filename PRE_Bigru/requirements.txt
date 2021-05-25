@@ -1,6 +1,0 @@
-tensorflow==1.14.0
-numpy
-bert_serving
-pyyaml #yaml
-pymongo
-tqdm

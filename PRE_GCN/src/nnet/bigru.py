@@ -19,16 +19,12 @@ class BiGRU(nn.Module):
         super(BiGRU, self).__init__()
         self.params = params
         self.batch_size = params['batch']
-        self.sen_len = params['sen_len']  # 句子的长度，如果不够就做填充，如果超过就做截取
-        self.num_steps=self.sen_len # LSTM的展开步数（num_step）为输入语句的长度，而每一个LSTM单元的输入则是语句中对应单词或词组的词向量。
         self.add_pos=params['add_pos']
         self.pos_dis = params['pos_limit']  # 设置位置的范围
         self.pos_dim = params['pos_dim']  # 设置位置嵌入的维度
         self.device = torch.device("cuda" if params['gpu'] != -1 else "cpu")
 
         self.pos_num = 2 * self.pos_dis + 3# 设置位置的总个数
-        # self.max_sent_length = params['max_sent_length']
-        # self.max_word_length = params['max_word_length']
 
         self.input_size = input_size
         self.output_size = params['output_gru']
@@ -48,7 +44,7 @@ class BiGRU(nn.Module):
         self.gru_layer = nn.GRU(input_size=self.input_size, hidden_size=self.gru_dim,
                                 num_layers=self.gru_layers, dropout=params['gru_dropout'],
                                 bidirectional=True)
-
+        # 消融实验
         if self.params['word_attn']:
             self.word_attn = AttentionWordRNN(batch_size=self.batch_size,
                              hidden_size=self.gru_dim, bidirectional= True)
@@ -78,7 +74,6 @@ class BiGRU(nn.Module):
             bag_input_sen = nn.utils.rnn.pad_sequence(bag, batch_first=True, padding_value=0)
             gru_input_sen= bag_input_sen.permute(1, 0, 2, 3).to(self.device)
             word_att_out=[]
-            # todo 按照batch还是一个一个句子
             for sen in gru_input_sen:
                 # 所有batch中的第i个word
                 # f_output, h_output = self.gru(output.float(), hidden_state)  # feature output and hidden state output
@@ -114,6 +109,9 @@ class BiGRU(nn.Module):
 
         return bags_res
     def get_sentences_in_bag(self,input,entities,section,pad=-1):
+        """
+        对于每一对人物实体，将其在文档中共现的句子提出后组成多示例的包
+        """
         entities_sentences=[]
         entities_id = []
         start = 0

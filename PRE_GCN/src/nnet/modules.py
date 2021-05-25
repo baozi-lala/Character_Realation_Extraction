@@ -244,7 +244,6 @@ class EncoderLSTM(nn.Module):
             hiddens.append(hidden.permute(1, 0, 2).contiguous().view(bsz, -1))
             outputs.append(output)
 
-        # assert torch.equal(outputs[-1][reverse_idx][original_idx][reverse_idx], inpu)
         return outputs[-1][reverse_idx][original_idx][reverse_idx], hiddens[-1][reverse_idx][original_idx][reverse_idx]
 
 class EncoderRNN(nn.Module):

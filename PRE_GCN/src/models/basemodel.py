@@ -20,8 +20,6 @@ class BaseModel(nn.Module):
                                      pretrained=pembeds,
                                      mapping=maps['word2idx'])
 
-        # self.ner_emb = EmbedLayer(num_embeddings=sizes['type_size'],
-        #                           embedding_dim=params['type_dim'], dropout=0.0, ignore=0)
 
 
         if params['finaldist']:
@@ -60,12 +58,9 @@ class BaseModel(nn.Module):
 
     def input_layer(self, words_):
         """
-        Word/NER/COREF Embedding Layer
+        Word Embedding Layer
         """
         word_vec = self.word_embed(words_)
-        # todo 可以把ner换成单词的词性，然后cat
-        # ner_vec = self.ner_emb(ner_)
-        # return torch.cat([word_vec, coref_vec, ner_vec], dim=-1)
         return torch.cat([word_vec], dim=-1)
 
     @staticmethod
@@ -94,7 +89,7 @@ class BaseModel(nn.Module):
     def merge_mentions(info, mentions, type="mean"):
         """
         Merge mentions into entities;
-        Find which rows (mentions) have the same entity id and average them
+        Find which rows (mentions) have the same entity name and average them
         """
         m_ids, e_ids = torch.broadcast_tensors(info[:, 0].unsqueeze(0),
                                                torch.arange(0, max(info[:, 0]) + 1).unsqueeze(-1).to(info.device))

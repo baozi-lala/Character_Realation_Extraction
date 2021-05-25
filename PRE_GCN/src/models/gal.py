@@ -1,22 +1,17 @@
 import torch
-import torch.nn.functional as F
-from torch.autograd import Variable
 from torch import nn
 from torch.nn.utils.rnn import pad_sequence
 import numpy as np
 from models.basemodel import BaseModel
 from nnet.attention import SelfAttention
-from transformers import *
 
 from nnet.modules import Classifier, EncoderLSTM, EmbedLayer, LockedDropout,EncoderRNN
 from nnet.rgcn import RGCN_Layer
 from utils.tensor_utils import rm_pad, split_n_pad,split_nodes_info_pad
-import os
-from nnet.attention import MultiHeadAttention
 from nnet.bigru import BiGRU
-class GLRE(BaseModel):
+class GAL(BaseModel):
     def __init__(self, params, pembeds, loss_weight=None, sizes=None, maps=None, lab2ign=None):
-        super(GLRE, self).__init__(params, pembeds, loss_weight, sizes, maps, lab2ign)
+        super(GAL, self).__init__(params, pembeds, loss_weight, sizes, maps, lab2ign)
         # contextual semantic information
         self.more_gru = params['more_gru']
         self.doc_node = params['doc_node']
@@ -33,16 +28,14 @@ class GLRE(BaseModel):
 
         self.pretrain_l_m_linear_re = nn.Linear(pretrain_hidden_size, params['lstm_dim'])
 
-        # 第二部分模型结构
+        # 局部特征
         if self.more_gru:
             gru_input_dim = params['lstm_dim']
             self.gru_layer = BiGRU(params,gru_input_dim)
 
-
+        # 全局特征
         # global node rep
         rgcn_input_dim = params['lstm_dim']
-        # if params['types']:
-        #     rgcn_input_dim += params['type_dim']
 
         self.rgcn_layer = RGCN_Layer(params, rgcn_input_dim, params['rgcn_hidden_dim'], params['rgcn_num_layers'], relation_cnt=5)
         self.rgcn_linear_re = nn.Linear(params['rgcn_hidden_dim']*2, params['rgcn_hidden_dim'])
@@ -57,10 +50,6 @@ class GLRE(BaseModel):
         if params['finaldist']:
             input_dim += params['dist_dim'] * 2
 
-        # todo 换成document node?
-        if params['context_att']:
-            self.self_att = SelfAttention(input_dim, 1.0)
-            input_dim = input_dim * 2
         if self.more_gru:
             if not params['global_rep']:
                 input_dim = params['output_gru']
@@ -81,10 +70,7 @@ class GLRE(BaseModel):
 
         self.rel_size = sizes['rel_size']
         self.finaldist = params['finaldist']
-        self.context_att = params['context_att']
         self.pretrain_l_m = params['pretrain_l_m']
-        # self.local_rep = params['local_rep']
-        self.query = params['query']
         self.global_rep = params['global_rep']
         self.lstm_encoder = params['lstm_encoder']
 
@@ -102,10 +88,10 @@ class GLRE(BaseModel):
         Graph Layer -> Construct a document-level graph
         The graph edges hold representations for the connections between the nodes.
         Args:
-            nodes: entities+sentences
+            nodes: entities+sentences+document
             info:        (Tensor, 5 columns) entity_id, entity_nameId, pos_id, sentence_id,type
-            section:     (Tensor <B, 3>) #entities/#sentences/ per batch
-            # positions:   distances between nodes (only M-M and S-S)
+            section:     (Tensor <B, 3>) #entities/#sentences/#document per batch
+            # positions:   distances between nodes
 
         Returns: (Tensor) graph, (Tensor) tensor_mapping, (Tensors) indices, (Tensor) node information
         """
@@ -128,7 +114,6 @@ class GLRE(BaseModel):
 
     def node_layer(self, encoded_seq, info, word_sec,sen_len):
         # SENTENCE NODES
-        # todo 这里是不是有改进的点
         sentences = torch.mean(encoded_seq, dim=1)  # sentence nodes (avg of sentence words)
         # ENTITY NODES
         encoded_seq_token = rm_pad(encoded_seq, word_sec)
@@ -163,22 +148,13 @@ class GLRE(BaseModel):
             # sent_id.append(torch.tensor([i]))
         # res = torch.Tensor(res).to(self.device)  # node types (0,2)
         return res
-        # sent_id= torch.cat(sent_id).to(self.device)  # node types (0,2)
-        # rows_ = torch.bincount(torch.Tensor(info[:, 0])).cumsum(dim=0)
-        # rows_ = torch.cat([torch.tensor([0]).to(self.device), rows_[:-1]]).to(self.device)  #
-        # 去掉实体类型的信息
-        # stypes = torch.neg(torch.ones(section[:, 2].sum())).to(self.device).long()  # semantic type sentences = -1
-        # all_types = torch.cat((info[:, 1][rows_], info[:, 1], stypes), dim=0)
-        # sents_ = torch.arange(section.sum(dim=0)[2]).to(self.device)
-        # sent_id = torch.cat((torch.Tensor(info[:, 3])[rows_], torch.Tensor(info[:, 3]), sents_), dim=0)  # sent_id
-        # return torch.cat((type.unsqueeze(-1),  sent_id), dim=1)
+
 
     @staticmethod
     def rearrange_nodes(nodes, section):
         """
         Re-arrange nodes so that they are in 'Entity - Sentence-Document' order for each document (batch)
         """
-        # todo 没懂需要回来看一下
         if isinstance(nodes,list):
             tmp1 = section.t().contiguous().view(-1).long()
             tmp3 = torch.arange(section.numel()).view(section.size(1),
@@ -222,7 +198,6 @@ class GLRE(BaseModel):
             output_gru = self.gru_layer(encoded_seq, batch['entities'],batch['section'][:, 0])
 
         # Graph
-        # assert self.lstm_encoder
         # 每个节点的表示，第二个维度相同，第一个维度为个数
         nodes = self.node_layer(encoded_seq, batch['entities'], batch['word_sec'],batch['section'][:, 1])
 
@@ -235,7 +210,7 @@ class GLRE(BaseModel):
         relation_rep_h = nodes[:, r_idx]
         relation_rep_t = nodes[:, c_idx]
         # relation_rep = self.rgcn_linear_re(relation_rep)  # global node rep
-
+        # 距离向量
         if self.finaldist:
             dis_h_2_t = batch['distances_dir'] + 10
             dis_t_2_h = -batch['distances_dir'] + 10
@@ -245,10 +220,6 @@ class GLRE(BaseModel):
             relation_rep_t = torch.cat((relation_rep_t, dist_dir_t_h_vec), dim=-1)
         graph_select = torch.cat((relation_rep_h, relation_rep_t), dim=-1)
 
-        if self.context_att:
-            # todo 删除multi_relation
-            relation_mask = torch.sum(torch.ne(batch['multi_relations'], 0), -1).gt(0)
-            graph_select = self.self_att(graph_select, graph_select, relation_mask)
 
         # Classification
         r_idx, c_idx = torch.meshgrid(torch.arange(nodes.size(1)),

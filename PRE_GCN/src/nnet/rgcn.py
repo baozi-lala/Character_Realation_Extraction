@@ -36,12 +36,11 @@ class RGCN_Layer(nn.Module):
         """
 
         :param nodes:  batch_size * node_size * node_emb
-        :param adj:  batch_size * 3 * node_size * node_size
+        :param adj:  batch_size * cnt * node_size * node_size
         :param section:  (Tensor <B, 2>) #entities/#sentences per batch
         :return:
         """
         gcn_inputs = self.in_drop(nodes)
-        # todo 还没看懂
         maskss = []
         denomss = []
         edge_cnt = 3
@@ -54,7 +53,6 @@ class RGCN_Layer(nn.Module):
             # relation_cnt=rgcn_adjacency.shape[0]
             for i in range(edge_cnt):
                 # 第batch中第i种节点  边
-                # todo 为0时？
                 if adj[batch, i]._nnz()==0:
                     # denom = torch.sparse.sum(adj[batch, i])
                     # t_g = denom + torch.sparse.sum(adj[batch, i])

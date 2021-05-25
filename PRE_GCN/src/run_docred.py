@@ -7,7 +7,7 @@ parser.add_argument('--batch', type=int, default=8)
 inp = parser.parse_args()
 
 
-config_path = './configs/docpre_basebert.yaml'
+config_path = 'configs/docpre_config.yaml'
 output_path = './results/docpre-dev/docred_basebert_full/'
 # os.system('CUDA_VISIBLE_DEVICES=' + str(inp.gpu)+ ' python main.py --train --batch=' + str(inp.batch)+ ' --test_data=./data/DocRED/processed/dev.data'
 #           ' --config_file=' + config_path+ ' --save_pred=dev --output_path=' + output_path)

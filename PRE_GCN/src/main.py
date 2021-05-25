@@ -5,7 +5,6 @@ import json
 import torch
 import random
 import numpy as np
-from data.convert2result import fun
 import pickle as pkl
 
 from data.dataset import DocRelationDataset

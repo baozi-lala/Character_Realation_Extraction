@@ -15,13 +15,12 @@ import random
 
 from transformers import AdamW, get_linear_schedule_with_warmup, get_constant_schedule_with_warmup
 
-from models.glre import GLRE
+from models.gal import GAL
 from utils.adj_utils import sparse_mxs_to_torch_sparse_tensor, convert_3dsparse_to_4dsparse
 from utils.utils import print_results, write_preds, write_errors, print_options, save_model
 from data.converter import concat_examples
 from torch import optim, nn
 from utils.metrics_util import Accuracy
-from sklearn.metrics import classification_report, f1_score
 
 torch.set_printoptions(profile="full")
 np.set_printoptions(threshold=np.inf)
@@ -77,7 +76,7 @@ class Trainer:
         self.test_epoch = 1
 
     def init_model(self):
-        model_0 = GLRE(self.params, self.loader.pre_embeds,
+        model_0 = GAL(self.params, self.loader.pre_embeds,
                             sizes={'word_size': self.loader.n_words,
                                    'rel_size': self.loader.n_rel},
                             maps={'word2idx': self.loader.word2index, 'idx2word': self.loader.index2word,
@@ -238,7 +237,6 @@ class Trainer:
                 label = relation_label[i]
                 if label < 0:
                     break
-                # assert self.loader.label2ignore == 0
                 if label == self.loader.label2ignore:
                     self.acc_NA.add(predictions[i] == label)
                 else:
@@ -476,27 +474,6 @@ class Trainer:
         r=pr_x
         p=pr_y
 
-        # pr_x = []
-        # pr_y = []
-        # correct = correct_in_train = 0
-        # for i, item in enumerate(test_result):
-        #     correct += item[0]
-        #     if item[0] & (item[2].lower() == 'true'):
-        #         correct_in_train += 1
-        #     if correct_in_train == correct:
-        #         p = 0
-        #     else:
-        #         p = float(correct - correct_in_train) / (i + 1 - correct_in_train)
-        #     pr_y.append(p)
-        #     pr_x.append(float(correct) / total_recall)
-        # pr_x = np.asarray(pr_x, dtype='float32')
-        # pr_y = np.asarray(pr_y, dtype='float32')
-        # f1_arr = (2 * pr_x * pr_y / (pr_x + pr_y + 1e-20))
-        # f1 = f1_arr.max()
-        #
-        # auc = sklearn.metrics.auc(x=pr_x, y=pr_y)
-        # print('Ignore ma_f1 {:3.4f} | input_theta {:3.4f} | test_result F1 {:3.4f} | P {:3.4f} | R {:3.4f} | AUC {:3.4f}'
-        #         .format(f1, input_theta, f1_arr[w], pr_y[w], pr_x[w], auc))
 
         if isTest:
             # item[3]
@@ -562,37 +539,6 @@ class Trainer:
             'prune {}-{} | ma_f1 {:3.4f} | ma_p {:3.4f} | ma_r {:3.4f}| input_theta {:3.4f} | test_result F1 {:3.4f} | P {:3.4f} | R {:3.4f} | AUC {:3.4f}'
             .format(prune_k_s, prune_k_e, f1, pr_y[f1_pos], pr_x[f1_pos], input_theta, f1_arr[w], pr_y[w], pr_x[w], auc))
 
-        # pr_x = []
-        # pr_y = []
-        # correct_in_prune_k = correct_in_train = 0
-        # all_in_prune_k = 0
-        # w = 0
-        # j = 0
-        # for i, item in enumerate(test_result):
-        #     dis = int(item[3])
-        #     if dis >= prune_k_s and dis < prune_k_e:
-        #         all_in_prune_k+=1
-        #         j+=1
-        #         correct_in_prune_k += item[0]
-        #         if item[0] & (item[2].lower() == 'true'):
-        #             correct_in_train += 1
-        #         if correct_in_train == correct_in_prune_k:
-        #             p = 0
-        #         else:
-        #             p = float(correct_in_prune_k - correct_in_train) / (all_in_prune_k - correct_in_train)
-        #         pr_y.append(p)
-        #         pr_x.append(float(correct_in_prune_k) / total_recall)
-        #         if item[1] > input_theta:
-        #             w = j
-        # pr_x = np.asarray(pr_x, dtype='float32')
-        # pr_y = np.asarray(pr_y, dtype='float32')
-        # f1_arr = (2 * pr_x * pr_y / (pr_x + pr_y + 1e-20))
-        # f1 = f1_arr.max()
-        #
-        # auc = sklearn.metrics.auc(x=pr_x, y=pr_y)
-        # print(
-        #     'Ignore prune {}-{} | ma_f1 {:3.4f} | input_theta {:3.4f} | test_result F1 {:3.4f} | P {:3.4f} | R {:3.4f} | AUC {:3.4f}'
-        #     .format(prune_k_s, prune_k_e, f1, input_theta, f1_arr[w], pr_y[w], pr_x[w], auc))
 
 
     def convert_batch(self, batch, istrain=False, save=False):

@@ -29,7 +29,7 @@ class ConfigLoader:
         # parser.add_argument("--remodelfile", type=str,default='./results/docpre-dev-merge/docred_full_sen_nodocnode/')
         parser.add_argument('--input_theta', type=float, default=-1)
 
-        parser.add_argument('--config_file', type=str,default='./configs/docpre_basebert.yaml')
+        parser.add_argument('--config_file', type=str,default='./configs/docpre_config.yaml')
         # parser.add_argument('--output_path', type=str, default='./results/docpre-dev-merge/docred_full_sen_nodocnode/')
         # parser.add_argument('--test_data', type=str,default='../data/DocPRE/processed/dev1_v4.json')
         parser.add_argument('--save_pred', type=str,default='dev')
@@ -41,6 +41,9 @@ class ConfigLoader:
         return parser.parse_args(args=[])
 
     def load_config(self):
+        """
+        load hyper-paratemeter
+        """
         inp = self.load_cmd()
 
         with open(inp.config_file, 'r', encoding="utf-8") as f:
@@ -125,17 +128,6 @@ class DataLoader:
                 self.label2ignore = key
         print("label2ignore ", self.label2ignore)
 
-    @staticmethod
-    def check_nested(p):
-        starts1 = list(map(int, p[8].split(':')))
-        ends1 = list(map(int, p[9].split(':')))
-
-        starts2 = list(map(int, p[14].split(':')))
-        ends2 = list(map(int, p[15].split(':')))
-
-        for s1, e1, s2, e2 in zip(starts1, ends1, starts2, ends2):
-            if bool(set(np.arange(s1, e1)) & set(np.arange(s2, e2))):
-                print('nested pair', p)
 
     def find_singletons(self, min_w_freq=1):
         """
@@ -199,7 +191,6 @@ class DataLoader:
         self.pre_embeds['UNK'] = np.asarray(np.random.normal(size=word_dim, loc=0, scale=0.05), 'f')
         self.add_word('PAD')
         self.pre_embeds['PAD'] = np.asarray(np.random.normal(size=word_dim, loc=0, scale=0.05), 'f')
-        # todo 用所有词向量的平均
         # embed_mean, embed_std = word_embed.mean(), word_embed.std()
         #
         # pad_embed = np.random.normal(embed_mean, embed_std,

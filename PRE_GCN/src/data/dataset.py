@@ -9,7 +9,6 @@ from tqdm import tqdm
 import scipy.sparse as sp
 from collections import OrderedDict
 
-# from nnet.transformers_word_handle import transformers_word_handle
 from utils.adj_utils import preprocess_adj, sparse_mxs_to_torch_sparse_tensor
 
 class DocRelationDataset:
@@ -20,25 +19,17 @@ class DocRelationDataset:
         self.loader = loader
         self.data_type = data_type
         self.data = []
-        self.lowercase = params['lowercase']
         self.prune_recall = {"0-max":0, "0-1":0,"1-2":0,"2-3":0,"0-3":0,"1-3":0, "1-max":0, "3-max":0}
         self.doc_node=params['doc_node']
-        # if 'bert-large' in params['pretrain_l_m'] and 'albert' not in params['pretrain_l_m']:
-        #     self.bert = transformers_word_handle("bert", 'bert-large-uncased-whole-word-masking', dataset=params['dataset'])
-        # elif 'bert-base-chinese' in params['pretrain_l_m'] and 'albert' not in params['pretrain_l_m']:
-        #     self.bert = transformers_word_handle("bert", 'bert-base-chinese', dataset=params['dataset'])
-        # elif 'albert' in params['pretrain_l_m']:
-        #     self.bert = transformers_word_handle('albert', params['pretrain_l_m'], dataset=params['dataset'])
-        # elif 'xlnet' in params['pretrain_l_m']:
-        #     self.bert = transformers_word_handle('xlnet', params['pretrain_l_m'], dataset=params['dataset'])
-        # else:
-        #     print('bert init error')
-        #     exit(0)
+
 
     def __len__(self):
         return len(self.data)
 
     def __call__(self):
+        """
+        data preprocess, including entities,nodes and adjacency
+        """
         pbar = tqdm(self.loader.documents.keys())
         max_node_cnt = 0
         miss_word = 0
@@ -60,12 +51,9 @@ class DocRelationDataset:
                 sent = []
                 if self.data_type == 'train':
                     for w, word in enumerate(sentence):
-                        if self.lowercase:
-                            word = word.lower()
                         if word not in self.mappings.word2index:
                             miss_word += 1
                             sent += [self.mappings.word2index['UNK']]  # UNK words = singletons for train
-                        # todo 随机？
                         elif (word in self.mappings.singletons) and (random.uniform(0, 1) < float(self.unk_w_prob)):
                             sent += [self.mappings.word2index['UNK']]
                         else:
@@ -73,8 +61,6 @@ class DocRelationDataset:
 
                 else:
                     for w, word in enumerate(sentence):
-                        if self.lowercase:
-                            word = word.lower()
                         if word in self.mappings.word2index:
                             sent += [self.mappings.word2index[word]]
                         else:
@@ -84,11 +70,11 @@ class DocRelationDataset:
                 doc += [sent]
                 sens_len.append(len(sent))
 
-            # ENTITIES [id, name, sen_id,pos1,pos2, node_type_id] + NODES [id, type, start, end, node_type_id]
+            # nodes [id, name, sen_id,pos,postotal, node_type_id]
             nodes = []
             ent = []
             ent_sen_mask = np.zeros((len(self.loader.entities[pmid].items()), len(sens_len)), dtype=np.float32)
-            # entities=[]
+            # 实体节点
             for id_, (e, i) in enumerate(self.loader.entities[pmid].items()):
                 nodes += [[id_, i.name,[int(x) for x in i.sentNo.split(':')],
                            [int(x) for x in i.pos.split(':')],[int(x) for x in i.postotal.split(':')], 0]]
@@ -101,12 +87,13 @@ class DocRelationDataset:
             ent+=nodes
             ent.sort(key=lambda x: x[0], reverse=False)
 
-
+            # 句子节点
             for s, sentence in enumerate(self.loader.documents[pmid]):
-                nodes += [[s, s, [s], [s],[s], 2]]
+                nodes += [[s, s, [s], [s],[s], 2]] # 1被我吃了，懒得改了呜呜呜
+            # 文档节点
             if self.doc_node:
                 nodes += [[0, 0, [0], [0], [0],3]]
-            # entity：0,sentence:2,doc:1
+            # entity：0,sentence:2,doc:3
             nodes = np.array(nodes,dtype=object)
 
             max_node_cnt = max(max_node_cnt, nodes.shape[0])
@@ -125,14 +112,10 @@ class DocRelationDataset:
                 relation_set = set()
                 # 单关系只有一个i
                 for i in ii:
-                    # assert relation_multi_label[ents_keys.index(r[0]), ents_keys.index(r[1]), self.mappings.rel2index[i.type]] != 1.0
                     # 第i个人和第j个人在第k种关系上为true
                     relation_multi_label[ents_keys.index(r[0]), ents_keys.index(r[1]), self.mappings.rel2index[i.type]] = 1.0
-                    # assert self.loader.ign_label == "NA" or self.loader.ign_label == "1:NR:2"
-                    # if i.type != self.loader.ign_label:
-                    #     assert relation_multi_label[ents_keys.index(r[0]), ents_keys.index(r[1]), self.mappings.rel2index[self.loader.ign_label]] != 1.0
                     relation_set.add(self.mappings.rel2index[i.type])
-
+                    # 距离信息
                     if i.type != self.loader.ign_label:
                         dis_cross = int(i.cross)
                         max_dis=max(max_dis,dis_cross)
@@ -177,10 +160,9 @@ class DocRelationDataset:
                                                                             ('intrain', ii[rt].intrain),
                                                                             ('cross', ii[rt].cross)])
 
-                # assert nodes[ents_keys.index(r[0])][2] == min([int(ms) for ms in self.loader.entities[pmid][r[0]].mstart.split(':')])
 
             #######################
-            # DISTANCES
+            # 构建邻接矩阵
             #######################
             xv, yv = np.meshgrid(np.arange(nodes.shape[0]), np.arange(nodes.shape[0]), indexing='ij')
 

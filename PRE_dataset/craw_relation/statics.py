@@ -148,9 +148,9 @@ class Statics(object):
             num_list.append(v)
 
         # Mac系统设置中文字体支持
-        plt.rcParams["font.family"] = 'Arial Unicode MS'
-        # plt.rcParams['font.sans-serif'] = ['SimHei']  # 显示中文标签
-        # plt.rcParams['axes.unicode_minus'] = False  # 解决负号“-”显示为方块的问题
+        # plt.rcParams["font.family"] = 'Arial Unicode MS'
+        plt.rcParams['font.sans-serif'] = ['simsun']  # 显示中文标签
+        plt.rcParams['axes.unicode_minus'] = False  # 解决负号“-”显示为方块的问题
 
         # 利用Matplotlib模块绘制条形图
         x = range(len(num_list))
@@ -168,11 +168,10 @@ class Statics(object):
             height = rect.get_height()
             plt.text(rect.get_x() + rect.get_width() / 2, height + 1, str(height), ha="center", va="bottom")
 
-        # plt.show()
+        plt.show()
         plt.savefig('pics/bar_chart.png')
 
     def draw_bar_png2(self):
-        import pandas as pd
         import matplotlib.pyplot as plt
         f = open("files2/relation_calcu_count.txt", "r",encoding="utf-8")
         label_list = []
@@ -183,10 +182,16 @@ class Statics(object):
             num_list.append(int(line[1]))
 
         # Mac系统设置中文字体支持
-        plt.rcParams["font.family"] = 'Arial Unicode MS'
+        # plt.rcParams["font.family"] = 'Arial Unicode MS'
 
-        # plt.rcParams['font.sans-serif'] = ['SimHei']  # 显示中文标签
-        # plt.rcParams['axes.unicode_minus'] = False  # 解决负号“-”显示为方块的问题
+        plt.rcParams['font.sans-serif'] = ['simsun']  # 显示中文标签
+        plt.rcParams['axes.unicode_minus'] = False  # 解决负号“-”显示为方块的问题
+        # 设置刻度字体大小
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
+        # 设置坐标标签字体大小
+        # plt.set_xlabel(..., fontsize=12)
+        # plt.set_ylabel(..., fontsize=12)
         # 利用Matplotlib模块绘制条形图
         x = range(len(num_list))
         rects = plt.bar(x=x, height=num_list, width=0.6, color='blue', label="频数")
@@ -203,7 +208,7 @@ class Statics(object):
             height = rect.get_height()
             plt.text(rect.get_x() + rect.get_width() / 2, height + 1, str(height), ha="center", va="bottom")
 
-        # plt.show()
+        plt.show()
         plt.savefig('pics/bar_chart1.png')
 
 # 获取人名库1

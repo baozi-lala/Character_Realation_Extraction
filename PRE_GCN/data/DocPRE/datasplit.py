@@ -118,7 +118,7 @@ def convertdataset(data_name):
     out_path = os.path.join("dataset/",data_name+ '.json')
     json.dump(data, open(out_path, "w"),ensure_ascii=False)
 def data_statics():
-    with open("processed/data_v4.json", 'r', encoding='utf-8') as infile:
+    with open("processed/data_v3.json", 'r', encoding='utf-8') as infile:
         sen_list=[]
         word_list=[]
         enti_list=[]
@@ -143,11 +143,37 @@ def data_statics():
         print(min(word_list),max(word_list),np.mean(word_list))
         print(min(enti_list), max(enti_list), np.mean(enti_list))
         print(max_sen_len)
-        plt.subplot(3, 1, 1)  # 要生成两行两列，这是第一个图plt.subplot('行','列','编号')
+
+        ax =plt.subplot(3, 1, 1)  # 要生成两行两列，这是第一个图plt.subplot('行','列','编号')
+        # 设置刻度字体大小
+        # plt.xticks(fontsize=12)
+        # plt.yticks(fontsize=12)
+        # # 设置坐标标签字体大小
+        # ax.set_xlabel(..., fontsize=12)
+        # ax.set_ylabel(..., fontsize=12)
+        # 设置图例字体大小
+        # ax.legend(..., fontsize=12)
         draw_hist(sen_list, '句子数统计', '句子个数', '统计个数')  # 直方图展示
-        plt.subplot(3, 1, 2)  # 两行两列,这是第二个图
+        ax =plt.subplot(3, 1, 2)  # 两行两列,这是第二个图
+
+        # 设置刻度字体大小
+        # plt.xticks(fontsize=12)
+        # plt.yticks(fontsize=12)
+        # # 设置坐标标签字体大小
+        # ax.set_xlabel(..., fontsize=12)
+        # ax.set_ylabel(..., fontsize=12)
+        # 设置图例字体大小
+        # ax.legend(..., fontsize=12)
         draw_hist(word_list, '单词长度统计', '单词个数', '统计个数')
-        plt.subplot(3, 1, 3)  # 两行两列,这是第二个图
+        ax =plt.subplot(3, 1, 3)  # 两行两列,这是第二个图
+        # # 设置刻度字体大小
+        # plt.xticks(fontsize=12)
+        # plt.yticks(fontsize=12)
+        # # 设置坐标标签字体大小
+        # ax.set_xlabel(..., fontsize=12)
+        # ax.set_ylabel(..., fontsize=12)
+        # 设置图例字体大小
+        # ax.legend(..., fontsize=12)
         draw_hist(enti_list, '人物实体个数统计', '人物实体个数', '统计个数')
 
         plt.show()
@@ -161,7 +187,7 @@ def draw_hist(myList,Title,Xlabel,Ylabel):
     # plt.rcParams['axes.unicode_minus'] = False  # 解决负号“-”显示为方块的问题
     # Mac系统设置中文字体支持
     # plt.rcParams["font.family"] = 'Arial Unicode MS'
-    plt.rcParams['font.sans-serif'] = ['SimHei']  # 显示中文标签
+    plt.rcParams['font.sans-serif'] = ['simsun']  # 显示中文标签
     plt.rcParams['axes.unicode_minus'] = False  # 解决负号“-”显示为方块的问题
 
     plt.hist(myList,100)

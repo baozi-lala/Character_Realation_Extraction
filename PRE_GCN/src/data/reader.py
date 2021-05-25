@@ -9,16 +9,6 @@ import json
 EntityInfo = recordtype('EntityInfo', 'id name sentNo pos postotal')
 PairInfo = recordtype('PairInfo', 'type cross intrain')
 
-
-
-
-def overlap_chunk(chunk=1, lst=None):
-    if len(lst) <= chunk:
-        return [lst]
-    else:
-        return [lst[i:i + chunk] for i in range(0, len(lst)-chunk+1, 1)]
-
-
 def get_distance(e1_sentNo, e2_sentNo):
     distance = 10000
     for e1 in e1_sentNo.split(':'):
@@ -94,7 +84,6 @@ def read(input_file, documents, entities, relations,word2index,intrain):
                 entity_pair_dis = get_distance(entities[pmid][str(label['p1'])].sentNo,
                                                entities[pmid][str(label['p2'])].sentNo)
                 if (str(label['p1']), str(label['p2'])) not in relations[pmid]:
-                    # todo 这里是多关系 后面需要修改为单关系
                     relations[pmid][(str(label['p1']), str(label['p2']))]=[PairInfo(label['r'],entity_pair_dis, intrain)]
                     allp += 1
                 else:
@@ -104,7 +93,6 @@ def read(input_file, documents, entities, relations,word2index,intrain):
             # 实体出现的顺序
             for coref_id, key in enumerate(entities_dist):
                 entities_cor_id[pmid][key[0]] = coref_id + 1
-            # assert len(relations[pmid]) == allp
 
 
 

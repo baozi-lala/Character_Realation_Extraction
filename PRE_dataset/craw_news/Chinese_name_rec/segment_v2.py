@@ -44,7 +44,6 @@ class NameRec(object):
             f_bag = open('files/train_bag.txt', 'a+')
 
             f_error = open('files/error_file_v2.txt', 'a+')
-            # todo 分成训练集，验证集和测试集
             for sample_id, d in enumerate(doc):
                 if sample_id<=4:
                     continue
@@ -184,7 +183,6 @@ class NameRec(object):
         par_relation_list = self.query_database_relation(name_list)
         if len(name_list)>20:
             return "人名太多",None,None,None,None,None,None
-        # todo 每一个sample要按照包的形式组织方便研究内容二的输入
         return sentence_segments,sentence_value,sentence_label,sentence_segments_relation,par_relation_list,name_count,sentence_to_bag
 
 

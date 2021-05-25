@@ -42,7 +42,7 @@ a:hover {
   width:50%;
   padding:10px;
   margin: auto;
-  position: absolute;
+  /*position: absolute;*/
 }
 .tmp{
   width: 100%;
@@ -497,7 +497,7 @@ section {
   padding-bottom: 30px;
 }
 
-.section-title h2 {
+.section-title h2{
   font-size: 32px;
   font-weight: bold;
   text-transform: uppercase;
@@ -505,7 +505,14 @@ section {
   padding-bottom: 20px;
   position: relative;
 }
-
+.tmp h2 {
+  font-size: 32px;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  position: relative;
+}
 .section-title h2::after {
   content: '';
   position: absolute;
@@ -516,11 +523,33 @@ section {
   bottom: 0;
   left: 0;
 }
-
+.tmp h2::after {
+  content: '';
+  position: absolute;
+  display: block;
+  width: 50px;
+  height: 3px;
+  background: #009970;
+  bottom: 0;
+  left: 0;
+}
 .section-title p {
   margin-bottom: 0;
 }
-
+.svg-map{
+  display: block;
+  width: 100%;
+  /*padding: 0.4375rem 0;*/
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #495057;
+  background-color: rgba(0, 0, 0, 0);
+  background-clip: padding-box;
+  border: 1px solid #d2d2d2;
+  border-radius: 0;
+  box-shadow: none;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
 /*--------------------------------------------------------------
 # Clients
 --------------------------------------------------------------*/
